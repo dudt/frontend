@@ -1,12 +1,12 @@
+import { ActionIcon, Badge } from '@mantine/core'
+import { memo, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
     PiCloudArrowUpDuotone,
     PiProhibitDuotone,
     PiPulseDuotone,
     PiWarningCircle
 } from 'react-icons/pi'
-import { ActionIcon, Badge } from '@mantine/core'
-import { useTranslation } from 'react-i18next'
-import { memo, useMemo } from 'react'
 
 import { IProps } from './interface'
 
@@ -58,7 +58,7 @@ export const NodeStatusBadgeWidget = memo(
         }
 
         return (
-            <Badge color={color} leftSection={icon} maw={'20ch'} miw={'20ch'} size="lg" {...rest}>
+            <Badge color={color} leftSection={icon} maw="20ch" miw="20ch" size="lg" {...rest}>
                 {status}
             </Badge>
         )

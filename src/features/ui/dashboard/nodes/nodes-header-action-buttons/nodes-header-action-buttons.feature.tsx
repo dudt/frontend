@@ -1,30 +1,37 @@
-import {
-    ActionIcon,
-    ActionIconGroup,
-    Alert,
-    Button,
-    Group,
-    Stack,
-    Text,
-    Tooltip
-} from '@mantine/core'
-import { TbAlertCircle, TbInfoCircle, TbPlus, TbRefresh, TbRocket, TbSearch } from 'react-icons/tb'
-import { useTranslation } from 'react-i18next'
-import { spotlight } from '@mantine/spotlight'
-import { PiSpiral } from 'react-icons/pi'
+import { ActionIcon, ActionIconGroup, Group, Stack, Tooltip } from '@mantine/core'
 import { modals } from '@mantine/modals'
+import { spotlight } from '@mantine/spotlight'
+import { useTranslation } from 'react-i18next'
+import { PiSpiral } from 'react-icons/pi'
+import {
+    TbAlertCircle,
+    TbCards,
+    TbPlus,
+    TbPlugConnected,
+    TbRefresh,
+    TbRocket,
+    TbSearch,
+    TbTable
+} from 'react-icons/tb'
 
-import { useNodesStoreActions } from '@entities/dashboard/nodes/nodes-store/nodes-store'
+import { showModal } from '@shared/_modals/show-modal'
 import { useGetNodes, useRestartAllNodes } from '@shared/api/hooks'
+import { ActionCardShared } from '@shared/ui'
+import { BaseOverlayHeader } from '@shared/ui/overlays/base-overlay-header'
 
-export const NodesHeaderActionButtonsFeature = () => {
+import { NODES_VIEW_MODE, useExperimentalFeature } from '@entities/dashboard/view-preferences-store'
+
+interface IProps {
+    setViewMode: (viewMode: NODES_VIEW_MODE) => void
+    viewMode: NODES_VIEW_MODE
+}
+
+export const NodesHeaderActionButtonsFeature = (props: IProps) => {
+    const { setViewMode, viewMode } = props
+
     const { t } = useTranslation()
 
-    const actions = useNodesStoreActions()
-
-    const handleCreate = () => {
-        actions.toggleCreateModal(true)
-    }
+    const isNodeIntegrationsEnabled = useExperimentalFeature('nodeIntegrations')
 
     const {
         isLoading: isGetNodesPending,
@@ -36,65 +43,55 @@ export const NodesHeaderActionButtonsFeature = () => {
 
     const openRestartAllNodesModal = () => {
         modals.open({
-            title: t('nodes-header-action-buttons.feature.restart-all-nodes'),
+            title: (
+                <BaseOverlayHeader
+                    iconColor="teal"
+                    IconComponent={TbRocket}
+                    iconVariant="soft"
+                    title={t('nodes-header-action-buttons.feature.restart-all-nodes')}
+                />
+            ),
             centered: true,
             size: 'md',
             children: (
-                <Stack>
-                    <Alert color="blue" icon={<TbInfoCircle size={20} />} variant="light">
-                        <Stack gap="xs">
-                            <Text size="sm">
-                                <Text component="span" fw={600}>
-                                    {t('nodes-header-action-buttons.feature.force-restart')}
-                                </Text>{' '}
-                                {t('nodes-header-action-buttons.feature.force-restart-description')}
-                            </Text>
-                            <Text size="sm">
-                                <Text component="span" fw={600}>
-                                    {t('nodes-header-action-buttons.feature.graceful-restart')}
-                                </Text>{' '}
-                                {t(
-                                    'nodes-header-action-buttons.feature.graceful-restart-description-1'
-                                )}
-                            </Text>
-                        </Stack>
-                    </Alert>
+                <Stack gap="sm">
+                    <ActionCardShared
+                        description={t(
+                            'nodes-header-action-buttons.feature.force-restart-description'
+                        )}
+                        icon={<TbAlertCircle size={22} />}
+                        iconColor="red"
+                        isLoading={isPending}
+                        onClick={() => {
+                            restartAllNodes({
+                                variables: {
+                                    forceRestart: true
+                                }
+                            })
+                            modals.closeAll()
+                        }}
+                        title={t('nodes-header-action-buttons.feature.force')}
+                        variant="soft"
+                    />
 
-                    <Group grow preventGrowOverflow={false} wrap="wrap">
-                        <Button
-                            color="red"
-                            leftSection={<TbAlertCircle size={22} />}
-                            onClick={() => {
-                                restartAllNodes({
-                                    variables: {
-                                        forceRestart: true
-                                    }
-                                })
-                                modals.closeAll()
-                            }}
-                            radius="md"
-                            size="md"
-                            variant="light"
-                        >
-                            {t('nodes-header-action-buttons.feature.force')}
-                        </Button>
-                        <Button
-                            leftSection={<TbRocket size={22} />}
-                            onClick={() => {
-                                restartAllNodes({
-                                    variables: {
-                                        forceRestart: false
-                                    }
-                                })
-                                modals.closeAll()
-                            }}
-                            radius="md"
-                            size="md"
-                            variant="light"
-                        >
-                            {t('nodes-header-action-buttons.feature.graceful')}
-                        </Button>
-                    </Group>
+                    <ActionCardShared
+                        description={t(
+                            'nodes-header-action-buttons.feature.graceful-restart-description-1'
+                        )}
+                        icon={<TbRocket size={22} />}
+                        iconColor="teal"
+                        isLoading={isPending}
+                        onClick={() => {
+                            restartAllNodes({
+                                variables: {
+                                    forceRestart: false
+                                }
+                            })
+                            modals.closeAll()
+                        }}
+                        title={t('nodes-header-action-buttons.feature.graceful')}
+                        variant="soft"
+                    />
                 </Stack>
             )
         })
@@ -102,19 +99,58 @@ export const NodesHeaderActionButtonsFeature = () => {
 
     return (
         <Group grow preventGrowOverflow={false} wrap="wrap">
+            {viewMode === NODES_VIEW_MODE.CARDS && (
+                <ActionIconGroup>
+                    <Tooltip label={t('nodes-header-action-buttons.feature.search-nodes')}>
+                        <ActionIcon
+                            color="gray"
+                            onClick={spotlight.open}
+                            size="input-md"
+                            variant="soft"
+                        >
+                            <TbSearch size="24px" />
+                        </ActionIcon>
+                    </Tooltip>
+                </ActionIconGroup>
+            )}
+
             <ActionIconGroup>
-                <Tooltip label={t('nodes-header-action-buttons.feature.search-nodes')}>
+                <Tooltip label="Toggle view mode">
                     <ActionIcon
                         color="gray"
-                        onClick={spotlight.open}
-                        radius="md"
-                        size="lg"
-                        variant="light"
+                        onClick={() =>
+                            setViewMode(
+                                viewMode === NODES_VIEW_MODE.TABLE
+                                    ? NODES_VIEW_MODE.CARDS
+                                    : NODES_VIEW_MODE.TABLE
+                            )
+                        }
+                        size="input-md"
+                        variant="soft"
                     >
-                        <TbSearch size="18px" />
+                        {viewMode === NODES_VIEW_MODE.CARDS ? (
+                            <TbTable size="24px" />
+                        ) : (
+                            <TbCards size="24px" />
+                        )}
                     </ActionIcon>
                 </Tooltip>
             </ActionIconGroup>
+
+            {isNodeIntegrationsEnabled && (
+                <ActionIconGroup>
+                    <Tooltip label={t('node-integrations.modal.title')} withArrow>
+                        <ActionIcon
+                            color="pink"
+                            onClick={() => showModal('nodeIntegrations_nodeIntegrationsModal')}
+                            size="input-md"
+                            variant="soft"
+                        >
+                            <TbPlugConnected size="24px" />
+                        </ActionIcon>
+                    </Tooltip>
+                </ActionIconGroup>
+            )}
 
             <ActionIconGroup>
                 <Tooltip
@@ -127,39 +163,35 @@ export const NodesHeaderActionButtonsFeature = () => {
                         onClick={() => {
                             openRestartAllNodesModal()
                         }}
-                        radius="md"
-                        size="lg"
-                        variant="light"
+                        size="input-md"
+                        variant="soft"
                     >
-                        <PiSpiral size="18px" />
+                        <PiSpiral size="24px" />
                     </ActionIcon>
                 </Tooltip>
             </ActionIconGroup>
 
             <ActionIconGroup>
-                <Tooltip label={t('nodes-header-action-buttons.feature.update')} withArrow>
+                <Tooltip label={t('common.action.update')} withArrow>
                     <ActionIcon
                         loading={isGetNodesPending || isPending || isRefetching}
                         onClick={() => refetchNodes()}
-                        radius="md"
-                        size="lg"
-                        variant="light"
+                        size="input-md"
+                        variant="soft"
                     >
-                        <TbRefresh size="18px" />
+                        <TbRefresh size="24px" />
                     </ActionIcon>
                 </Tooltip>
             </ActionIconGroup>
-
             <ActionIconGroup>
-                <Tooltip label={t('nodes-header-action-buttons.feature.create-new-node')} withArrow>
+                <Tooltip label={t('common.action.create')} withArrow>
                     <ActionIcon
                         color="teal"
-                        onClick={handleCreate}
-                        radius="md"
-                        size="lg"
-                        variant="light"
+                        onClick={() => showModal('nodes_createNodeModal')}
+                        size="input-md"
+                        variant="soft"
                     >
-                        <TbPlus size="18px" />
+                        <TbPlus size="24px" />
                     </ActionIcon>
                 </Tooltip>
             </ActionIconGroup>

@@ -2,6 +2,7 @@ import { Box, Group, Indicator, Text } from '@mantine/core'
 import { useTranslation } from 'react-i18next'
 
 import { getConnectionStatusColorUtil, getTimeAgoUtil } from '@shared/utils/time-utils'
+
 import { IProps } from '@entities/dashboard/users/ui/table-columns/username/interface'
 
 export function UsernameColumnEntity(props: IProps) {
@@ -9,12 +10,12 @@ export function UsernameColumnEntity(props: IProps) {
 
     const { user } = props
 
-    const color = getConnectionStatusColorUtil(user.onlineAt)
-    const timeAgo = getTimeAgoUtil(user.onlineAt, t, i18n.language)
+    const color = getConnectionStatusColorUtil(user.userTraffic.onlineAt)
+    const timeAgo = getTimeAgoUtil(user.userTraffic.onlineAt, t, i18n.language)
 
     return (
         <Group align="center" gap="md" pl={10} wrap="nowrap">
-            <Indicator color={color} inline processing size={12} zIndex={0} />
+            <Indicator color={color} inline size={12} zIndex={0} />
             <Box w="100%">
                 <Text fw={500} size="sm" truncate="end">
                     {user.username}

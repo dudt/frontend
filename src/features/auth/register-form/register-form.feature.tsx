@@ -8,19 +8,17 @@ import {
     TextInput,
     Title
 } from '@mantine/core'
-import { PiShuffleDuotone, PiSignpostDuotone } from 'react-icons/pi'
-import { RegisterCommand } from '@remnawave/backend-contract'
-import { zodResolver } from 'mantine-form-zod-resolver'
-import { notifications } from '@mantine/notifications'
-import { generate } from 'generate-password-ts'
-import { useTranslation } from 'react-i18next'
+import { useForm, schemaResolver } from '@mantine/form'
 import { useClipboard } from '@mantine/hooks'
-import { useForm } from '@mantine/form'
+import { notifications } from '@mantine/notifications'
+import { RegisterCommand } from '@remnawave/backend-contract'
 import { useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
+import { PiShuffleDuotone, PiSignpostDuotone } from 'react-icons/pi'
 
-import { handleFormErrors } from '@shared/utils/misc'
-import { useAuth } from '@shared/hooks/use-auth'
 import { useRegister } from '@shared/api/hooks'
+import { useAuth } from '@shared/hooks/use-auth'
+import { handleFormErrors } from '@shared/utils/misc'
 
 export const RegisterFormFeature = () => {
     const { t } = useTranslation()
@@ -31,7 +29,7 @@ export const RegisterFormFeature = () => {
 
     const form = useForm({
         validate: {
-            ...zodResolver(RegisterCommand.RequestSchema),
+            ...schemaResolver(RegisterCommand.RequestBodySchema),
             confirmPassword: (value, values) =>
                 value !== values.password
                     ? t('register-form.feature.passwords-do-not-match')
@@ -56,14 +54,9 @@ export const RegisterFormFeature = () => {
     })
 
     const handleGeneratePassword = () => {
-        const newPassword = generate({
-            length: 32,
-            numbers: true,
-            symbols: false,
-            uppercase: true,
-            lowercase: true,
-            strict: true
-        })
+        const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+        const bytes = crypto.getRandomValues(new Uint8Array(32))
+        const newPassword = Array.from(bytes, (b) => charset[b % charset.length]).join('')
 
         form.setValues({
             ...form.values,
@@ -77,7 +70,7 @@ export const RegisterFormFeature = () => {
     useEffect(() => {
         if (error) {
             notifications.show({
-                title: t('register-form.feature.error'),
+                title: t('common.message.error'),
                 message: t('register-form.feature.password-copied-error')
             })
         }
@@ -102,7 +95,7 @@ export const RegisterFormFeature = () => {
     return (
         <form onSubmit={handleSubmit}>
             <Container size="100%">
-                <Paper p={30} radius="md">
+                <Paper p={30}>
                     <Title mb="xs" order={2} ta="center">
                         {t('register-form.feature.registration')}
                     </Title>
@@ -111,7 +104,7 @@ export const RegisterFormFeature = () => {
                     </Text>
 
                     <TextInput
-                        label={t('register-form.feature.username')}
+                        label={t('common.field.username')}
                         placeholder="IamSuperAdmin"
                         required
                         size="md"
@@ -120,7 +113,7 @@ export const RegisterFormFeature = () => {
 
                     <Stack mt="md">
                         <PasswordInput
-                            label={t('register-form.feature.password')}
+                            label={t('common.field.password')}
                             placeholder="soy_t5Px5`Gm4j0@Hf&Dd7iU"
                             required
                             size="md"
@@ -140,9 +133,7 @@ export const RegisterFormFeature = () => {
                             fullWidth
                             leftSection={<PiShuffleDuotone size="16px" />}
                             onClick={handleGeneratePassword}
-                            radius="md"
                             size="md"
-                            variant="light"
                         >
                             {t('register-form.feature.generate')}
                         </Button>
@@ -153,7 +144,6 @@ export const RegisterFormFeature = () => {
                         leftSection={<PiSignpostDuotone size="16px" />}
                         loading={isLoading}
                         mt="xl"
-                        radius="md"
                         size="md"
                         type="submit"
                         variant="default"

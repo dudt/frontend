@@ -1,41 +1,60 @@
 import { ActionIcon, Tooltip } from '@mantine/core'
+import { modals } from '@mantine/modals'
 import { useTranslation } from 'react-i18next'
 import { TbTrash } from 'react-icons/tb'
 
-import { useHostsStoreActions, useHostsStoreEditModalHost } from '@entities/dashboard'
-import { useDeleteHost } from '@shared/api/hooks'
+import { hideModal } from '@shared/_modals/show-modal'
+import { queryClient } from '@shared/api'
+import { QueryKeys, useDeleteHost } from '@shared/api/hooks'
 
-export function DeleteHostFeature() {
+interface IProps {
+    hostUuid: string
+}
+
+export function DeleteHostFeature(props: IProps) {
+    const { hostUuid } = props
+
     const { t } = useTranslation()
-
-    const actions = useHostsStoreActions()
-    const host = useHostsStoreEditModalHost()
 
     const { mutate: deleteHost, isPending: isDeleteHostPending } = useDeleteHost({
         mutationFns: {
             onSuccess: () => {
-                actions.toggleEditModal(false)
+                hideModal('hosts_editHostDrawer')
+                queryClient.refetchQueries({ queryKey: QueryKeys.hosts.getAllHosts.queryKey })
             }
         }
     })
 
-    if (!host) return null
-
     const handleDeleteHost = async () => {
-        deleteHost({ route: { uuid: host.uuid } })
+        deleteHost({ route: { uuid: hostUuid } })
     }
 
+    const openModal = () =>
+        modals.openConfirmModal({
+            title: t('common.action.confirm-action'),
+            children: t('common.message.confirm-action-description'),
+            labels: {
+                confirm: t('common.action.delete'),
+                cancel: t('common.action.cancel')
+            },
+            centered: true,
+            cancelProps: {
+                variant: 'subtle'
+            },
+            confirmProps: { color: 'red', variant: 'soft' },
+            onConfirm: () => handleDeleteHost()
+        })
+
     return (
-        <Tooltip label={t('delete-host.feature.delete-host')}>
+        <Tooltip label={t('common.action.delete')}>
             <ActionIcon
                 color="red"
                 loading={isDeleteHostPending}
-                onClick={handleDeleteHost}
-                radius="md"
-                size="lg"
-                variant="light"
+                onClick={openModal}
+                size="xl"
+                variant="soft"
             >
-                <TbTrash size="20px" />
+                <TbTrash size="24px" />
             </ActionIcon>
         </Tooltip>
     )

@@ -11,78 +11,35 @@ import {
     SimpleGrid,
     Stack,
     Text,
-    ThemeIcon,
-    Title
+    ThemeIcon
 } from '@mantine/core'
+import { GetNodesMetricsCommand } from '@remnawave/backend-contract'
+import { VirtuosoMasonry } from '@virtuoso.dev/masonry'
+import { useCallback, useMemo } from 'react'
 import {
     PiGlobeSimple,
     PiInfo,
     PiProhibitDuotone,
     PiPulseDuotone,
-    PiSpeedometer,
     PiUsersDuotone
 } from 'react-icons/pi'
-import { GetNodesMetricsCommand } from '@remnawave/backend-contract'
-import { VirtuosoMasonry } from '@virtuoso.dev/masonry'
-import { TbServer, TbServer2 } from 'react-icons/tb'
-import { memo, useCallback, useMemo } from 'react'
-import { useMediaQuery } from '@mantine/hooks'
+import { TbServer } from 'react-icons/tb'
 
-import { MODALS, useModalsStore } from '@entities/dashboard/modal-store'
-import { MetricCard } from '@shared/ui/metrics/metric-card'
+import { showModal } from '@shared/_modals/show-modal'
 import { useGetNodesMetrics } from '@shared/api/hooks'
-import { formatInt } from '@shared/utils/misc'
+import { useIsMobile } from '@shared/hooks'
+import { MetricCardShared } from '@shared/ui/metrics/metric-card'
 
 import { NodeDetailsCard } from './node-details-card'
 import styles from './NodeDetails.module.css'
 
-const StatCard = memo(
-    ({
-        icon: Icon,
-        title,
-        value,
-        color,
-        isLoading
-    }: {
-        color: string
-        icon: React.ElementType
-        isLoading?: boolean
-        title: string
-        value: number | string
-    }) => (
-        <MetricCard.Root>
-            <Group wrap="nowrap">
-                <MetricCard.Icon c={color} p="sm">
-                    <Icon size="32px" />
-                </MetricCard.Icon>
-                <Stack align="self-start" gap="xs" miw={0} w="100%">
-                    <MetricCard.TextMuted truncate>{title}</MetricCard.TextMuted>
-                    <Box miw={0} w="100%">
-                        <MetricCard.TextEmphasis ff="monospace" truncate>
-                            {isLoading ? <Loader color={color} size="xs" /> : value}
-                        </MetricCard.TextEmphasis>
-                    </Box>
-                </Stack>
-            </Group>
-        </MetricCard.Root>
-    )
-)
-
 export const NodeMetricsWidget = () => {
     const { data: nodeMetrics, isLoading } = useGetNodesMetrics()
-    const { open, setInternalData } = useModalsStore()
-    const isMobile = useMediaQuery('(max-width: 768px)')
+    const isMobile = useIsMobile()
 
-    const handleNodeClick = useCallback(
-        (nodeUuid: string) => {
-            setInternalData({
-                internalState: { nodeUuid },
-                modalKey: MODALS.EDIT_NODE_BY_UUID_MODAL
-            })
-            open(MODALS.EDIT_NODE_BY_UUID_MODAL)
-        },
-        [open, setInternalData]
-    )
+    const handleNodeClick = useCallback((nodeUuid: string) => {
+        showModal('nodes_editNodeModal', { nodeUuid })
+    }, [])
 
     const overallStats = useMemo(() => {
         if (!nodeMetrics?.nodes) return null
@@ -113,7 +70,7 @@ export const NodeMetricsWidget = () => {
 
     if (!nodeMetrics?.nodes?.length) {
         return (
-            <Card p="xl" radius="lg">
+            <Card p="xl">
                 <Center>
                     <Stack align="center" gap="md">
                         <ThemeIcon color="gray" size="xl" variant="light">
@@ -149,9 +106,43 @@ export const NodeMetricsWidget = () => {
 
     return (
         <Stack gap="md">
+            <SimpleGrid cols={{ sm: 1, md: 2, lg: 4 }} spacing="xs">
+                <MetricCardShared
+                    iconColor="indigo"
+                    IconComponent={TbServer}
+                    iconVariant="soft"
+                    isLoading={isLoading}
+                    title="Total Nodes"
+                    value={overallStats?.totalNodes || 0}
+                />
+                <MetricCardShared
+                    iconColor="teal"
+                    IconComponent={PiPulseDuotone}
+                    iconVariant="soft"
+                    isLoading={isLoading}
+                    title="Active Nodes"
+                    value={overallStats?.activeNodes || 0}
+                />
+                <MetricCardShared
+                    iconColor="blue"
+                    IconComponent={PiUsersDuotone}
+                    iconVariant="soft"
+                    isLoading={isLoading}
+                    title="Users Online"
+                    value={overallStats?.totalUsersOnline || 0}
+                />
+                <MetricCardShared
+                    iconColor="violet"
+                    IconComponent={PiGlobeSimple}
+                    iconVariant="soft"
+                    isLoading={isLoading}
+                    title="Total Inbounds"
+                    value={overallStats?.totalInbounds || 0}
+                />
+            </SimpleGrid>
+
             <Paper
                 p="md"
-                radius="md"
                 style={{
                     background: 'rgba(59, 130, 246, 0.05)',
                     border: '1px solid rgba(59, 130, 246, 0.2)'
@@ -213,65 +204,6 @@ export const NodeMetricsWidget = () => {
             </Paper>
 
             <Box>
-                <Group align="center" gap="md" mb="lg" wrap="nowrap">
-                    <ThemeIcon color="indigo" size="lg" variant="light">
-                        <PiSpeedometer size="24px" />
-                    </ThemeIcon>
-                    <Title
-                        c="white"
-                        order={2}
-                        style={{
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis'
-                        }}
-                    >
-                        Metrics Overview
-                    </Title>
-                </Group>
-
-                <SimpleGrid cols={{ sm: 1, md: 2, lg: 4 }} spacing="md">
-                    <StatCard
-                        color="indigo"
-                        icon={TbServer}
-                        isLoading={isLoading}
-                        title="Total Nodes"
-                        value={formatInt(overallStats?.totalNodes || 0)}
-                    />
-                    <StatCard
-                        color="teal"
-                        icon={PiPulseDuotone}
-                        isLoading={isLoading}
-                        title="Active Nodes"
-                        value={formatInt(overallStats?.activeNodes || 0)}
-                    />
-                    <StatCard
-                        color="blue"
-                        icon={PiUsersDuotone}
-                        isLoading={isLoading}
-                        title="Users Online"
-                        value={formatInt(overallStats?.totalUsersOnline || 0)}
-                    />
-                    <StatCard
-                        color="violet"
-                        icon={PiGlobeSimple}
-                        isLoading={isLoading}
-                        title="Total Inbounds"
-                        value={formatInt(overallStats?.totalInbounds || 0)}
-                    />
-                </SimpleGrid>
-            </Box>
-
-            <Box>
-                <Group align="center" gap="md" mb="lg">
-                    <ThemeIcon color="teal" size="lg" variant="light">
-                        <TbServer2 size="24px" />
-                    </ThemeIcon>
-                    <Title c="white" order={2}>
-                        Node Details
-                    </Title>
-                </Group>
-
                 <VirtuosoMasonry
                     columnCount={isMobile ? 1 : 2}
                     data={nodeMetrics?.nodes}

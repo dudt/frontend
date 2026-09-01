@@ -1,20 +1,29 @@
 import { ActionIcon, ActionIconGroup, Group, Tooltip } from '@mantine/core'
-import { TbPlus, TbRefresh } from 'react-icons/tb'
 import { useTranslation } from 'react-i18next'
+import { TbCards, TbPlus, TbRefresh, TbTable } from 'react-icons/tb'
 
-import { useHostsStoreActions } from '@entities/dashboard'
-import { QueryKeys, useGetHosts } from '@shared/api/hooks'
+import { showModal } from '@shared/_modals/show-modal'
+import { HelpActionIconShared } from '@shared/_modals/universal'
 import { queryClient } from '@shared/api'
+import { QueryKeys, useGetHosts } from '@shared/api/hooks'
+import { UniversalSpotlightActionIconShared } from '@shared/ui/universal-spotlight'
 
-export const HeaderActionButtonsFeature = () => {
+import { HOSTS_VIEW_MODE } from '@entities/dashboard/view-preferences-store'
+
+interface IProps {
+    setViewMode: (viewMode: HOSTS_VIEW_MODE) => void
+    viewMode: HOSTS_VIEW_MODE
+}
+
+export const HeaderActionButtonsFeature = (props: IProps) => {
+    const { setViewMode, viewMode } = props
+
     const { t } = useTranslation()
-
-    const actions = useHostsStoreActions()
 
     const { isFetching } = useGetHosts()
 
     const handleCreate = () => {
-        actions.toggleCreateModal(true)
+        showModal('hosts_createHostDrawer')
     }
 
     const handleUpdate = async () => {
@@ -25,30 +34,50 @@ export const HeaderActionButtonsFeature = () => {
 
     return (
         <Group grow preventGrowOverflow={false} wrap="wrap">
+            <HelpActionIconShared hidden={false} screen="PAGE_HOSTS" />
+
+            <UniversalSpotlightActionIconShared />
+
             <ActionIconGroup>
-                <Tooltip label={t('header-action-buttons.feature.update')} withArrow>
+                <Tooltip label="Toggle view mode">
                     <ActionIcon
-                        loading={isFetching}
-                        onClick={handleUpdate}
-                        radius="md"
-                        size="lg"
-                        variant="light"
+                        color="gray"
+                        onClick={() =>
+                            setViewMode(
+                                viewMode === HOSTS_VIEW_MODE.TABLE
+                                    ? HOSTS_VIEW_MODE.CARDS
+                                    : HOSTS_VIEW_MODE.TABLE
+                            )
+                        }
+                        size="input-md"
+                        variant="soft"
                     >
-                        <TbRefresh size="18px" />
+                        {viewMode === HOSTS_VIEW_MODE.CARDS ? (
+                            <TbTable size="24px" />
+                        ) : (
+                            <TbCards size="24px" />
+                        )}
                     </ActionIcon>
                 </Tooltip>
             </ActionIconGroup>
 
             <ActionIconGroup>
-                <Tooltip label={t('header-action-buttons.feature.create-new-host')} withArrow>
+                <Tooltip label={t('common.action.update')} withArrow>
                     <ActionIcon
-                        color="teal"
-                        onClick={handleCreate}
-                        radius="md"
-                        size="lg"
-                        variant="light"
+                        loading={isFetching}
+                        onClick={handleUpdate}
+                        size="input-md"
+                        variant="soft"
                     >
-                        <TbPlus size="18px" />
+                        <TbRefresh size="24px" />
+                    </ActionIcon>
+                </Tooltip>
+            </ActionIconGroup>
+
+            <ActionIconGroup>
+                <Tooltip label={t('common.action.create')} withArrow>
+                    <ActionIcon color="teal" onClick={handleCreate} size="input-md" variant="soft">
+                        <TbPlus size="24px" />
                     </ActionIcon>
                 </Tooltip>
             </ActionIconGroup>

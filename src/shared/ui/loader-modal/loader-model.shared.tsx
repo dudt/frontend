@@ -1,18 +1,23 @@
-import { Center, Loader, Stack, Text } from '@mantine/core'
+import { Center, Loader, Stack } from '@mantine/core'
 
-import { IProps } from './interfaces'
+import { SectionCard } from '../section-card'
+
+interface IProps {
+    mih?: string
+}
 
 export function LoaderModalShared(props: IProps) {
-    const { text, ...rest } = props
+    const { mih } = props
 
     return (
-        <Center {...rest}>
-            <Stack align="center" gap="sm">
-                <Loader size="lg" variant="bars" />
-                <Text c="dimmed" size="sm">
-                    {text}
-                </Text>
-            </Stack>
-        </Center>
+        <SectionCard.Root p="xl" mih={mih}>
+            <SectionCard.Section>
+                <Center mih={mih}>
+                    <Stack align="center" gap="xs">
+                        <Loader size="64px" />
+                    </Stack>
+                </Center>
+            </SectionCard.Section>
+        </SectionCard.Root>
     )
 }

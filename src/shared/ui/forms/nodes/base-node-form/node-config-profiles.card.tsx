@@ -1,23 +1,23 @@
-/* eslint-disable indent */
-
-import { ForwardRefComponent, HTMLMotionProps, motion, Variants } from 'motion/react'
-import { CreateNodeCommand, UpdateNodeCommand } from '@remnawave/backend-contract'
-import { Fieldset, Group, Skeleton, Stack, Title } from '@mantine/core'
-import { SiSecurityscorecard } from 'react-icons/si'
-import { UseFormReturnType } from '@mantine/form'
-import { useTranslation } from 'react-i18next'
-
 import { ShowConfigProfilesWithInboundsFeature } from '@features/ui/dashboard/nodes/show-config-profiles-with-inbounds'
-import { useGetConfigProfiles } from '@shared/api/hooks'
+import { Skeleton, Stack } from '@mantine/core'
+import { UseFormReturnType } from '@mantine/form'
+import { CreateNodeCommand, UpdateNodeCommand } from '@remnawave/backend-contract'
+import { ForwardRefComponent, HTMLMotionProps, motion, Variants } from 'motion/react'
+import { useTranslation } from 'react-i18next'
+import { SiSecurityscorecard } from 'react-icons/si'
 
-interface IProps<T extends CreateNodeCommand.Request | UpdateNodeCommand.Request> {
+import { useGetConfigProfiles } from '@shared/api/hooks'
+import { BaseOverlayHeader } from '@shared/ui/overlays/base-overlay-header'
+import { SectionCard } from '@shared/ui/section-card'
+
+interface IProps<T extends CreateNodeCommand.RequestBody | UpdateNodeCommand.RequestBody> {
     cardVariants: Variants
     form: UseFormReturnType<T>
     motionWrapper: ForwardRefComponent<HTMLDivElement, HTMLMotionProps<'div'>>
 }
 
 export const NodeConfigProfilesCard = <
-    T extends CreateNodeCommand.Request | UpdateNodeCommand.Request
+    T extends CreateNodeCommand.RequestBody | UpdateNodeCommand.RequestBody
 >(
     props: IProps<T>
 ) => {
@@ -47,53 +47,50 @@ export const NodeConfigProfilesCard = <
 
     return (
         <MotionWrapper variants={cardVariants}>
-            <Fieldset
-                legend={
-                    <Group gap="xs" mb="xs">
-                        <SiSecurityscorecard
-                            size={20}
-                            style={{
-                                color: 'var(--mantine-color-teal-4)'
-                            }}
-                        />
-                        <Title c="teal.4" order={4}>
-                            {t('base-node-form.core-configuration')}
-                        </Title>
-                    </Group>
-                }
-            >
-                {isConfigProfilesLoading && (
-                    <Stack gap="md">
-                        <Skeleton height={24} width="40%" />
-                        <Skeleton height={16} width="60%" />
-                        <Skeleton height={76} radius="md" />
-                        <Skeleton height={25} radius="sm" width="100%" />
-                    </Stack>
-                )}
+            <SectionCard.Root>
+                <SectionCard.Section>
+                    <BaseOverlayHeader
+                        iconColor="teal"
+                        IconComponent={SiSecurityscorecard}
+                        iconVariant="soft"
+                        title={t('base-node-form.core-configuration')}
+                        titleOrder={5}
+                    />
+                </SectionCard.Section>
+                <SectionCard.Section>
+                    {isConfigProfilesLoading && (
+                        <Stack gap="md">
+                            <Skeleton height={24} width="40%" />
+                            <Skeleton height={16} width="60%" />
+                            <Skeleton height={76} radius="md" />
+                            <Skeleton height={25} radius="sm" width="100%" />
+                        </Stack>
+                    )}
 
-                {!isConfigProfilesLoading && configProfiles && (
-                    <motion.div
-                        animate={{ opacity: 1 }}
-                        initial={{ opacity: 0 }}
-                        transition={{
-                            duration: 0.4,
-                            ease: 'easeInOut'
-                        }}
-                    >
-                        <ShowConfigProfilesWithInboundsFeature
-                            activeConfigProfileInbounds={
-                                form.getValues().configProfile?.activeInbounds ?? []
-                            }
-                            activeConfigProfileUuid={
-                                form.getValues().configProfile?.activeConfigProfileUuid
-                            }
-                            configProfiles={configProfiles.configProfiles}
-                            errors={form.errors.configProfile}
-                            onSaveInbounds={saveInbounds}
-                        />
-                    </motion.div>
-                )}
-            </Fieldset>
+                    {!isConfigProfilesLoading && configProfiles && (
+                        <motion.div
+                            animate={{ opacity: 1 }}
+                            initial={{ opacity: 0 }}
+                            transition={{
+                                duration: 0.4,
+                                ease: 'easeInOut'
+                            }}
+                        >
+                            <ShowConfigProfilesWithInboundsFeature
+                                activeConfigProfileInbounds={
+                                    form.getValues().configProfile?.activeInbounds ?? []
+                                }
+                                activeConfigProfileUuid={
+                                    form.getValues().configProfile?.activeConfigProfileUuid
+                                }
+                                configProfiles={configProfiles.configProfiles}
+                                errors={form.errors.configProfile}
+                                onSaveInbounds={saveInbounds}
+                            />
+                        </motion.div>
+                    )}
+                </SectionCard.Section>
+            </SectionCard.Root>
         </MotionWrapper>
     )
 }

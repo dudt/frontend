@@ -1,15 +1,13 @@
 import { ActionIcon, Menu, Text, useDirection } from '@mantine/core'
-import { useTranslation } from 'react-i18next'
 import { useEffect } from 'react'
-
-const isCrowdin = __CROWDIN__ === '1'
+import { useTranslation } from 'react-i18next'
+import { TbLanguage } from 'react-icons/tb'
 
 const data = [
     { label: 'English', emoji: '🇬🇧', value: 'en' },
     { label: 'Русский', emoji: '🇷🇺', value: 'ru' },
     { label: 'فارسی', emoji: '🇮🇷', value: 'fa' },
-    { label: '简体中文', emoji: '🇨🇳', value: 'zh' },
-    ...(isCrowdin ? [{ label: 'Crowdin', emoji: '🏴‍☠️', value: 'af' }] : [])
+    { label: '简体中文', emoji: '🇨🇳', value: 'zh' }
 ]
 
 export function LanguagePicker() {
@@ -41,8 +39,6 @@ export function LanguagePicker() {
         }
     }
 
-    const selected = data.find((item) => item.value === i18n.language) || data[0]
-
     const items = data.map((item) => (
         <Menu.Item
             key={item.value}
@@ -57,7 +53,7 @@ export function LanguagePicker() {
         <Menu position="bottom-end" width={150} withinPortal>
             <Menu.Target>
                 <ActionIcon color="gray" size="xl" style={{ borderColor: 'transparent' }}>
-                    <Text size="xl">{selected.emoji}</Text>
+                    <TbLanguage size={22} />
                 </ActionIcon>
             </Menu.Target>
             <Menu.Dropdown>{items}</Menu.Dropdown>

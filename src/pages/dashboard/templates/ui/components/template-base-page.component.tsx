@@ -1,45 +1,41 @@
-import { TSubscriptionTemplateType } from '@remnawave/backend-contract'
-import { useTranslation } from 'react-i18next'
+import { TemplatesHeaderActionButtonsFeature } from '@features/ui/dashboard/templates/header-action-buttons'
+import {
+    GetSubscriptionTemplatesCommand,
+    TSubscriptionTemplateType
+} from '@remnawave/backend-contract'
+import { TemplatesGridWidget } from '@widgets/dashboard/templates/templates-grid/templates-grid.widget'
+import { TemplatesSpotlightWidget } from '@widgets/dashboard/templates/templates-spotlight'
+import { motion } from 'motion/react'
 
-import { SubscriptionTemplateEditorWidget } from '@widgets/dashboard/templates/subscription-template-editor'
-import { ROUTES } from '@shared/constants'
-import { PageHeader } from '@shared/ui'
-import { Page } from '@shared/ui/page'
+import { Page, PageHeaderShared } from '@shared/ui'
+import { getCoreLogoFromType } from '@shared/ui/get-core-logo-from-type'
 
 interface Props {
-    encodedTemplateYaml: null | string | undefined
-    language: 'json' | 'yaml'
-    templateJson: null | string | undefined
-    templateType: TSubscriptionTemplateType
-    title?: string
+    templates: GetSubscriptionTemplatesCommand.Response['response']['templates']
+    title: string
+    type: TSubscriptionTemplateType
 }
 
 export const TemplateBasePageComponent = (props: Props) => {
-    const { t } = useTranslation()
-    const {
-        encodedTemplateYaml,
-        templateType,
-        templateJson,
-        language,
-        title = t('constants.config')
-    } = props
+    const { templates, title, type } = props
 
     return (
         <Page title={title}>
-            <PageHeader
-                breadcrumbs={[
-                    { label: t('constants.dashboard'), href: ROUTES.DASHBOARD.HOME },
-                    { label: t('constants.templates') },
-                    { label: title }
-                ]}
+            <PageHeaderShared
+                actions={<TemplatesHeaderActionButtonsFeature templateType={type} />}
+                icon={getCoreLogoFromType({ type })}
                 title={title}
             />
-            <SubscriptionTemplateEditorWidget
-                encodedTemplateYaml={encodedTemplateYaml}
-                language={language}
-                templateJson={templateJson}
-                templateType={templateType}
-            />
+
+            <motion.div
+                animate={{ opacity: 1 }}
+                initial={{ opacity: 0 }}
+                transition={{ duration: 0.5 }}
+            >
+                <TemplatesGridWidget templates={templates} type={type} />
+            </motion.div>
+
+            <TemplatesSpotlightWidget templates={templates} />
         </Page>
     )
 }

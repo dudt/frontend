@@ -1,20 +1,24 @@
+import { notifications } from '@mantine/notifications'
 import {
+    BulkNodesActionsCommand,
+    BulkNodesProfileModificationCommand,
+    BulkNodesUpdateCommand,
     CreateNodeCommand,
     DeleteNodeCommand,
     DisableNodeCommand,
     EnableNodeCommand,
-    ReorderNodeCommand,
+    ReorderNodesCommand,
+    ResetNodeTrafficCommand,
     RestartAllNodesCommand,
     RestartNodeCommand,
     UpdateNodeCommand
 } from '@remnawave/backend-contract'
-import { notifications } from '@mantine/notifications'
 
 import { createMutationHook } from '../../tsq-helpers'
 
 export const useCreateNode = createMutationHook({
     endpoint: CreateNodeCommand.TSQ_url,
-    bodySchema: CreateNodeCommand.RequestSchema,
+    bodySchema: CreateNodeCommand.RequestBodySchema,
     responseSchema: CreateNodeCommand.ResponseSchema,
     requestMethod: CreateNodeCommand.endpointDetails.REQUEST_METHOD,
     rMutationParams: {
@@ -38,7 +42,7 @@ export const useCreateNode = createMutationHook({
 
 export const useUpdateNode = createMutationHook({
     endpoint: UpdateNodeCommand.TSQ_url,
-    bodySchema: UpdateNodeCommand.RequestSchema,
+    bodySchema: UpdateNodeCommand.RequestBodySchema,
     responseSchema: UpdateNodeCommand.ResponseSchema,
     requestMethod: UpdateNodeCommand.endpointDetails.REQUEST_METHOD,
     rMutationParams: {
@@ -62,8 +66,7 @@ export const useUpdateNode = createMutationHook({
 
 export const useDeleteNode = createMutationHook({
     endpoint: DeleteNodeCommand.TSQ_url,
-    responseSchema: DeleteNodeCommand.ResponseSchema,
-    routeParamsSchema: DeleteNodeCommand.RequestSchema,
+    routeParamsSchema: DeleteNodeCommand.RequestParamSchema,
     requestMethod: DeleteNodeCommand.endpointDetails.REQUEST_METHOD,
     rMutationParams: {
         onSuccess: () => {
@@ -87,7 +90,7 @@ export const useDeleteNode = createMutationHook({
 export const useEnableNode = createMutationHook({
     endpoint: EnableNodeCommand.TSQ_url,
     responseSchema: EnableNodeCommand.ResponseSchema,
-    routeParamsSchema: EnableNodeCommand.RequestSchema,
+    routeParamsSchema: EnableNodeCommand.RequestParamSchema,
     requestMethod: EnableNodeCommand.endpointDetails.REQUEST_METHOD,
     rMutationParams: {
         onSuccess: () => {
@@ -111,7 +114,7 @@ export const useEnableNode = createMutationHook({
 export const useDisableNode = createMutationHook({
     endpoint: DisableNodeCommand.TSQ_url,
     responseSchema: DisableNodeCommand.ResponseSchema,
-    routeParamsSchema: DisableNodeCommand.RequestSchema,
+    routeParamsSchema: DisableNodeCommand.RequestParamSchema,
     requestMethod: DisableNodeCommand.endpointDetails.REQUEST_METHOD,
     rMutationParams: {
         onSuccess: () => {
@@ -134,7 +137,6 @@ export const useDisableNode = createMutationHook({
 
 export const useRestartAllNodes = createMutationHook({
     endpoint: RestartAllNodesCommand.TSQ_url,
-    responseSchema: RestartAllNodesCommand.ResponseSchema,
     bodySchema: RestartAllNodesCommand.RequestBodySchema,
     requestMethod: RestartAllNodesCommand.endpointDetails.REQUEST_METHOD,
     rMutationParams: {
@@ -156,10 +158,10 @@ export const useRestartAllNodes = createMutationHook({
     }
 })
 export const useReorderNodes = createMutationHook({
-    endpoint: ReorderNodeCommand.TSQ_url,
-    bodySchema: ReorderNodeCommand.RequestSchema,
-    responseSchema: ReorderNodeCommand.ResponseSchema,
-    requestMethod: ReorderNodeCommand.endpointDetails.REQUEST_METHOD,
+    endpoint: ReorderNodesCommand.TSQ_url,
+    bodySchema: ReorderNodesCommand.RequestBodySchema,
+    responseSchema: ReorderNodesCommand.ResponseSchema,
+    requestMethod: ReorderNodesCommand.endpointDetails.REQUEST_METHOD,
     rMutationParams: {
         onError: (error) => {
             notifications.show({
@@ -174,8 +176,8 @@ export const useReorderNodes = createMutationHook({
 
 export const useRestartNode = createMutationHook({
     endpoint: RestartNodeCommand.TSQ_url,
-    responseSchema: RestartNodeCommand.ResponseSchema,
-    routeParamsSchema: RestartNodeCommand.RequestSchema,
+    routeParamsSchema: RestartNodeCommand.RequestParamSchema,
+    bodySchema: RestartNodeCommand.RequestBodySchema,
     requestMethod: RestartNodeCommand.endpointDetails.REQUEST_METHOD,
     rMutationParams: {
         onSuccess: () => {
@@ -188,6 +190,98 @@ export const useRestartNode = createMutationHook({
         onError: (error) => {
             notifications.show({
                 title: `Restart Node`,
+                message:
+                    error instanceof Error ? error.message : `Request failed with unknown error.`,
+                color: 'red'
+            })
+        }
+    }
+})
+
+export const useResetNodeTraffic = createMutationHook({
+    endpoint: ResetNodeTrafficCommand.TSQ_url,
+    routeParamsSchema: ResetNodeTrafficCommand.RequestParamSchema,
+    requestMethod: ResetNodeTrafficCommand.endpointDetails.REQUEST_METHOD,
+    rMutationParams: {
+        onSuccess: () => {
+            notifications.show({
+                title: 'Success',
+                message: 'Node traffic reset successfully',
+                color: 'teal'
+            })
+        },
+        onError: (error) => {
+            notifications.show({
+                title: `Reset Node Traffic`,
+                message:
+                    error instanceof Error ? error.message : `Request failed with unknown error.`,
+                color: 'red'
+            })
+        }
+    }
+})
+
+export const useBulkNodesProfileModification = createMutationHook({
+    endpoint: BulkNodesProfileModificationCommand.TSQ_url,
+    bodySchema: BulkNodesProfileModificationCommand.RequestBodySchema,
+    requestMethod: BulkNodesProfileModificationCommand.endpointDetails.REQUEST_METHOD,
+    rMutationParams: {
+        onSuccess: () => {
+            notifications.show({
+                title: 'Success',
+                message: 'Task added to queue successfully.',
+                color: 'teal'
+            })
+        },
+        onError: (error) => {
+            notifications.show({
+                title: `Bulk Nodes Profile Modification`,
+                message:
+                    error instanceof Error ? error.message : `Request failed with unknown error.`,
+                color: 'red'
+            })
+        }
+    }
+})
+
+export const useBulkNodesActions = createMutationHook({
+    endpoint: BulkNodesActionsCommand.TSQ_url,
+    bodySchema: BulkNodesActionsCommand.RequestBodySchema,
+    requestMethod: BulkNodesActionsCommand.endpointDetails.REQUEST_METHOD,
+    rMutationParams: {
+        onSuccess: () => {
+            notifications.show({
+                title: 'Success',
+                message: 'Actions added to queue successfully.',
+                color: 'teal'
+            })
+        },
+        onError: (error) => {
+            notifications.show({
+                title: `Bulk Nodes Actions`,
+                message:
+                    error instanceof Error ? error.message : `Request failed with unknown error.`,
+                color: 'red'
+            })
+        }
+    }
+})
+
+export const useBulkNodesUpdate = createMutationHook({
+    endpoint: BulkNodesUpdateCommand.TSQ_url,
+    bodySchema: BulkNodesUpdateCommand.RequestBodySchema,
+    requestMethod: BulkNodesUpdateCommand.endpointDetails.REQUEST_METHOD,
+    rMutationParams: {
+        onSuccess: () => {
+            notifications.show({
+                title: 'Success',
+                message: 'Nodes updated successfully.',
+                color: 'teal'
+            })
+        },
+        onError: (error) => {
+            notifications.show({
+                title: `Bulk Nodes Update`,
                 message:
                     error instanceof Error ? error.message : `Request failed with unknown error.`,
                 color: 'red'

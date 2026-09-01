@@ -1,15 +1,17 @@
+import { notifications } from '@mantine/notifications'
 import {
     CreateConfigProfileCommand,
     DeleteConfigProfileCommand,
+    ReorderConfigProfileCommand,
+    SetConfigProfileTagsCommand,
     UpdateConfigProfileCommand
 } from '@remnawave/backend-contract'
-import { notifications } from '@mantine/notifications'
 
 import { createMutationHook } from '../../tsq-helpers'
 
 export const useUpdateConfigProfile = createMutationHook({
     endpoint: UpdateConfigProfileCommand.TSQ_url,
-    bodySchema: UpdateConfigProfileCommand.RequestSchema,
+    bodySchema: UpdateConfigProfileCommand.RequestBodySchema,
     responseSchema: UpdateConfigProfileCommand.ResponseSchema,
     requestMethod: UpdateConfigProfileCommand.endpointDetails.REQUEST_METHOD,
     rMutationParams: {
@@ -33,8 +35,7 @@ export const useUpdateConfigProfile = createMutationHook({
 
 export const useDeleteConfigProfile = createMutationHook({
     endpoint: DeleteConfigProfileCommand.TSQ_url,
-    responseSchema: DeleteConfigProfileCommand.ResponseSchema,
-    routeParamsSchema: DeleteConfigProfileCommand.RequestSchema,
+    routeParamsSchema: DeleteConfigProfileCommand.RequestParamSchema,
     requestMethod: DeleteConfigProfileCommand.endpointDetails.REQUEST_METHOD,
     rMutationParams: {
         onSuccess: () => {
@@ -58,7 +59,7 @@ export const useDeleteConfigProfile = createMutationHook({
 export const useCreateConfigProfile = createMutationHook({
     endpoint: CreateConfigProfileCommand.TSQ_url,
     responseSchema: CreateConfigProfileCommand.ResponseSchema,
-    bodySchema: CreateConfigProfileCommand.RequestSchema,
+    bodySchema: CreateConfigProfileCommand.RequestBodySchema,
     requestMethod: CreateConfigProfileCommand.endpointDetails.REQUEST_METHOD,
     rMutationParams: {
         onSuccess: () => {
@@ -71,6 +72,40 @@ export const useCreateConfigProfile = createMutationHook({
         onError: (error) => {
             notifications.show({
                 title: `Create Config Profile`,
+                message:
+                    error instanceof Error ? error.message : `Request failed with unknown error.`,
+                color: 'red'
+            })
+        }
+    }
+})
+
+export const useReorderConfigProfiles = createMutationHook({
+    endpoint: ReorderConfigProfileCommand.TSQ_url,
+    bodySchema: ReorderConfigProfileCommand.RequestBodySchema,
+    responseSchema: ReorderConfigProfileCommand.ResponseSchema,
+    requestMethod: ReorderConfigProfileCommand.endpointDetails.REQUEST_METHOD,
+    rMutationParams: {
+        onError: (error) => {
+            notifications.show({
+                title: `Reorder Config Profiles`,
+                message:
+                    error instanceof Error ? error.message : `Request failed with unknown error.`,
+                color: 'red'
+            })
+        }
+    }
+})
+
+export const useSetConfigProfilesTags = createMutationHook({
+    endpoint: SetConfigProfileTagsCommand.TSQ_url,
+    bodySchema: SetConfigProfileTagsCommand.RequestBodySchema,
+    responseSchema: SetConfigProfileTagsCommand.ResponseSchema,
+    requestMethod: SetConfigProfileTagsCommand.endpointDetails.REQUEST_METHOD,
+    rMutationParams: {
+        onError: (error) => {
+            notifications.show({
+                title: 'Update tags',
                 message:
                     error instanceof Error ? error.message : `Request failed with unknown error.`,
                 color: 'red'

@@ -1,27 +1,34 @@
-import { CreateNodeCommand, UpdateNodeCommand } from '@remnawave/backend-contract'
-import { Button, CopyButton, em, Group, Menu, px, Stack } from '@mantine/core'
+import { DeleteNodeFeature } from '@features/ui/dashboard/nodes/delete-node'
+import { ResetNodeTrafficFeature } from '@features/ui/dashboard/nodes/reset-node-traffic'
+import { RestartNodeButtonFeature } from '@features/ui/dashboard/nodes/restart-node-button'
+import { ToggleNodeStatusButtonFeature } from '@features/ui/dashboard/nodes/toggle-node-status-button'
+import { Button, CopyButton, Group, Menu, px, Stack } from '@mantine/core'
+import { UseFormReturnType } from '@mantine/form'
+import {
+    GetNodeIntegrationsCommand,
+    GetNodePluginsCommand,
+    GetNodeSecretKeyCommand,
+    GetNodeCommand,
+    UpdateNodeCommand
+} from '@remnawave/backend-contract'
+import { NodeErrorMessageWidget } from '@widgets/dashboard/nodes/node-error-message'
+import { motion } from 'framer-motion'
+import { t } from 'i18next'
+import { ReactNode } from 'react'
 import { PiFloppyDiskDuotone } from 'react-icons/pi'
 import { TbCopy, TbDots } from 'react-icons/tb'
-import { useTranslation } from 'react-i18next'
-import { useMediaQuery } from '@mantine/hooks'
-import { motion } from 'framer-motion'
 
-import { ToggleNodeStatusButtonFeature } from '@features/ui/dashboard/nodes/toggle-node-status-button'
-import { GetNodeUsersUsageFeature } from '@features/ui/dashboard/nodes/get-node-users-usage'
-import { RestartNodeButtonFeature } from '@features/ui/dashboard/nodes/restart-node-button'
-import { ModalAccordionWidget } from '@widgets/dashboard/nodes/modal-accordeon-widget'
-import { DeleteNodeFeature } from '@features/ui/dashboard/nodes/delete-node'
+import { useIsMobile } from '@shared/hooks'
 import { ModalFooter } from '@shared/ui/modal-footer'
 
-import { NodeTrackingAndBillingCard } from './node-tracking-and-billing.card'
 import { NodeConfigProfilesCard } from './node-config-profiles.card'
 import { NodeConsumptionCard } from './node-consumption.card'
+import { NodeIpsCard } from './node-ips.card'
+import { NodeTrackingAndBillingCard } from './node-tracking-and-billing.card'
 import { NodeVitalsCard } from './node-vitals.card'
-import { NodeStatsCard } from './node-stats.card'
-import { IProps } from './interfaces'
 
 const MotionWrapper = motion.div
-const MotionStack = motion(Stack)
+const MotionStack = motion.create(Stack)
 
 const containerVariants = {
     hidden: {},
@@ -41,27 +48,37 @@ const cardVariants = {
     }
 }
 
-export const BaseNodeForm = <T extends CreateNodeCommand.Request | UpdateNodeCommand.Request>(
-    props: IProps<T>
-) => {
+interface IProps<T extends UpdateNodeCommand.RequestBody> {
+    form: UseFormReturnType<T>
+    handleClose: () => void
+    handleSubmit: () => void
+    isDataSubmitting: boolean
+    node: GetNodeCommand.Response['response']
+    nodeDetailsCard?: ReactNode
+    nodeIntegrations: GetNodeIntegrationsCommand.Response['response']['nodeIntegrations']
+    nodePlugins: GetNodePluginsCommand.Response['response']['nodePlugins']
+    nodeSystemCard?: ReactNode
+    secretKey: GetNodeSecretKeyCommand.Response['response'] | undefined
+}
+
+export const BaseNodeForm = <T extends UpdateNodeCommand.RequestBody>(props: IProps<T>) => {
     const {
         form,
-        handleClose,
         node,
-        fetchedNode,
-        pubKey,
-        advancedOpened,
-        isUpdateNodePending,
+        nodeIntegrations,
+        nodePlugins,
+        secretKey,
+        nodeDetailsCard,
+        nodeSystemCard,
+        handleClose,
         handleSubmit,
-        setAdvancedOpened,
-        nodeDetailsCard
+        isDataSubmitting
     } = props
 
-    const { t } = useTranslation()
-    const isMobile = useMediaQuery(`(max-width: ${em(768)})`)
+    const isMobile = useIsMobile()
 
     return (
-        <form onSubmit={handleSubmit}>
+        <>
             {isMobile ? (
                 <MotionStack
                     animate="visible"
@@ -69,22 +86,27 @@ export const BaseNodeForm = <T extends CreateNodeCommand.Request | UpdateNodeCom
                     initial="hidden"
                     variants={containerVariants}
                 >
-                    <ModalAccordionWidget fetchedNode={fetchedNode} node={node} pubKey={pubKey} />
+                    <NodeErrorMessageWidget node={node} />
 
                     {nodeDetailsCard && (
                         <MotionWrapper variants={cardVariants}>{nodeDetailsCard}</MotionWrapper>
                     )}
 
-                    {node && (
-                        <NodeStatsCard
-                            cardVariants={cardVariants}
-                            form={form}
-                            motionWrapper={MotionWrapper}
-                            node={node}
-                        />
+                    {nodeSystemCard && node.system && (
+                        <MotionWrapper variants={cardVariants}>{nodeSystemCard}</MotionWrapper>
                     )}
 
                     <NodeVitalsCard
+                        cardVariants={cardVariants}
+                        form={form}
+                        motionWrapper={MotionWrapper}
+                        nodeIntegrations={nodeIntegrations}
+                        nodePlugins={nodePlugins}
+                        nodeUuid={node.uuid}
+                        secretKey={secretKey}
+                    />
+
+                    <NodeIpsCard
                         cardVariants={cardVariants}
                         form={form}
                         motionWrapper={MotionWrapper}
@@ -97,11 +119,9 @@ export const BaseNodeForm = <T extends CreateNodeCommand.Request | UpdateNodeCom
                     />
 
                     <NodeTrackingAndBillingCard
-                        advancedOpened={advancedOpened}
                         cardVariants={cardVariants}
                         form={form}
                         motionWrapper={MotionWrapper}
-                        setAdvancedOpened={setAdvancedOpened}
                     />
 
                     <NodeConsumptionCard
@@ -111,20 +131,16 @@ export const BaseNodeForm = <T extends CreateNodeCommand.Request | UpdateNodeCom
                     />
                 </MotionStack>
             ) : (
-                <Group align="flex-start" gap="xl" grow={false} wrap="wrap">
+                <Group align="flex-start" gap="md" grow={false} wrap="wrap">
                     {/* Left Side */}
                     <MotionStack
                         animate="visible"
-                        gap="lg"
+                        gap="md"
                         initial="hidden"
                         style={{ flex: '1 1 400px' }}
                         variants={containerVariants}
                     >
-                        <ModalAccordionWidget
-                            fetchedNode={fetchedNode}
-                            node={node}
-                            pubKey={pubKey}
-                        />
+                        <NodeErrorMessageWidget node={node} />
 
                         {nodeDetailsCard && (
                             <MotionWrapper variants={cardVariants}>{nodeDetailsCard}</MotionWrapper>
@@ -134,6 +150,10 @@ export const BaseNodeForm = <T extends CreateNodeCommand.Request | UpdateNodeCom
                             cardVariants={cardVariants}
                             form={form}
                             motionWrapper={MotionWrapper}
+                            nodeIntegrations={nodeIntegrations}
+                            nodePlugins={nodePlugins}
+                            nodeUuid={node.uuid}
+                            secretKey={secretKey}
                         />
 
                         <NodeConsumptionCard
@@ -146,66 +166,65 @@ export const BaseNodeForm = <T extends CreateNodeCommand.Request | UpdateNodeCom
                     {/* Right Side */}
                     <MotionStack
                         animate="visible"
-                        gap="lg"
+                        gap="md"
                         initial="hidden"
                         style={{ flex: '1 1 400px' }}
                         variants={containerVariants}
                     >
+                        {nodeSystemCard && node.system && (
+                            <MotionWrapper variants={cardVariants}>{nodeSystemCard}</MotionWrapper>
+                        )}
+
                         <NodeConfigProfilesCard
                             cardVariants={cardVariants}
                             form={form}
                             motionWrapper={MotionWrapper}
                         />
 
-                        {(fetchedNode || node) && (
-                            <NodeStatsCard
-                                cardVariants={cardVariants}
-                                form={form}
-                                motionWrapper={MotionWrapper}
-                                node={fetchedNode || node!}
-                            />
-                        )}
-
-                        <NodeTrackingAndBillingCard
-                            advancedOpened={advancedOpened}
+                        <NodeIpsCard
                             cardVariants={cardVariants}
                             form={form}
                             motionWrapper={MotionWrapper}
-                            setAdvancedOpened={setAdvancedOpened}
+                        />
+
+                        <NodeTrackingAndBillingCard
+                            cardVariants={cardVariants}
+                            form={form}
+                            motionWrapper={MotionWrapper}
                         />
                     </MotionStack>
                 </Group>
             )}
 
-            <ModalFooter>
+            <ModalFooter isMobile={isMobile}>
                 {node && (
                     <Menu keepMounted={true} position="top-end" shadow="md">
                         <Menu.Target>
                             <Button
+                                color="gray"
                                 leftSection={<TbDots size={px('1.2rem')} />}
-                                size="sm"
-                                variant="outline"
+                                size="md"
                             >
-                                {t('base-node-form.more-actions')}
+                                {t('common.action.more-actions')}
                             </Button>
                         </Menu.Target>
 
                         <Menu.Dropdown>
-                            <Menu.Label>{t('base-node-form.quick-actions')}</Menu.Label>
-                            <GetNodeUsersUsageFeature nodeUuid={node.uuid} />
+                            <DeleteNodeFeature handleClose={handleClose} node={node} />
+                            <Menu.Divider />
+
+                            <Menu.Label>{t('base-node-form.management')}</Menu.Label>
                             <CopyButton value={node.uuid}>
                                 {({ copy }) => (
                                     <Menu.Item leftSection={<TbCopy size="16px" />} onClick={copy}>
-                                        {t('base-node-form.copy-node-uuid')}
+                                        {t('common.action.copy-uuid')}
                                     </Menu.Item>
                                 )}
                             </CopyButton>
-                            <Menu.Divider />
-                            <Menu.Label>{t('base-node-form.management')}</Menu.Label>
+                            <ResetNodeTrafficFeature handleClose={handleClose} node={node} />
+
                             <RestartNodeButtonFeature handleClose={handleClose} node={node} />
                             <ToggleNodeStatusButtonFeature handleClose={handleClose} node={node} />
-                            <Menu.Divider />
-                            <DeleteNodeFeature handleClose={handleClose} node={node} />
                         </Menu.Dropdown>
                     </Menu>
                 )}
@@ -213,14 +232,14 @@ export const BaseNodeForm = <T extends CreateNodeCommand.Request | UpdateNodeCom
                     color="teal"
                     disabled={!form.isDirty() || !form.isTouched()}
                     leftSection={<PiFloppyDiskDuotone size="16px" />}
-                    loading={isUpdateNodePending}
-                    size="sm"
-                    type="submit"
-                    variant="light"
+                    loading={isDataSubmitting}
+                    onClick={handleSubmit}
+                    size="md"
+                    variant="soft"
                 >
-                    {t('base-node-form.save')}
+                    {t('common.action.save')}
                 </Button>
             </ModalFooter>
-        </form>
+        </>
     )
 }

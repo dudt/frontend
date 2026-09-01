@@ -1,120 +1,126 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { SUBSCRIPTION_TEMPLATE_TYPE } from '@remnawave/backend-contract'
-import Editor, { Monaco } from '@monaco-editor/react'
-import { Box, Card, Paper } from '@mantine/core'
-import 'monaco-yaml/yaml.worker.js'
-import { useTranslation } from 'react-i18next'
-import { useRef } from 'react'
+import type { editor } from 'monaco-editor'
 
 import { TemplateEditorActionsFeature } from '@features/dashboard/subscription-templates/template-editor-actions'
-import { monacoTheme } from '@shared/constants/monaco-theme/monaco-theme'
+import { Box, Paper } from '@mantine/core'
+import { Monaco } from '@monaco-editor/react'
+import 'monaco-yaml/yaml.worker.js'
+import { GetHostsCommand, GetSubscriptionTemplateCommand } from '@remnawave/backend-contract'
+import { decode } from '@stablelib/base64'
+import clsx from 'clsx'
+import { useLayoutEffect, useRef } from 'react'
 
-import { XrayJsonTemplateDescriptionWidget } from './xray-json-template-description.widget'
-import { configureMonaco } from './utils/setup-template-monaco'
+import { usePseudoFullscreen, useViewportFillHeight } from '@shared/hooks'
+import { fullscreenClasses, FullscreenToggleButton } from '@shared/ui'
+import { CodeEditor, editorClasses, EditorFooter } from '@shared/ui/code-editor'
+import { preventBackScroll } from '@shared/utils/misc'
+import { setupSuggestWidget } from '@shared/utils/setup-monaco/setup-suggest-monaco'
+
 import styles from './SubscriptionTemplateEditor.module.css'
-import { Props } from './interfaces'
+import { configureMonaco, getTemplateModelPath } from './utils/setup-template-monaco'
+
+interface Props {
+    editorType: 'json' | 'yaml'
+    hosts: GetHostsCommand.Response['response']
+    template: GetSubscriptionTemplateCommand.Response['response']
+}
 
 export function SubscriptionTemplateEditorWidget(props: Props) {
-    const { t } = useTranslation()
-    const { encodedTemplateYaml, templateType, language, templateJson } = props
+    const { editorType, hosts, template } = props
 
-    const editorRef = useRef<unknown>(null)
-    const monacoRef = useRef<unknown>(null)
+    const { isFullscreen, toggle: toggleFullscreen } = usePseudoFullscreen()
+    const { containerRef: editorWrapperRef, footerRef } = useViewportFillHeight({
+        enabled: !isFullscreen
+    })
+
+    const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null)
+    const monacoRef = useRef<Monaco | null>(null)
 
     const getConfig = () => {
-        if (language === 'yaml') {
-            return encodedTemplateYaml ? Buffer.from(encodedTemplateYaml, 'base64').toString() : ''
+        if (editorType === 'yaml') {
+            return template.encodedTemplateYaml
+                ? new TextDecoder().decode(decode(template.encodedTemplateYaml))
+                : ''
         }
-        return JSON.stringify(templateJson, null, 2)
+        return JSON.stringify(template.templateJson, null, 2)
     }
 
     const handleEditorWillMount = (monaco: Monaco) => {
-        monaco.editor.defineTheme('GithubDark', {
-            ...monacoTheme,
-            base: 'vs-dark'
-        })
-        configureMonaco(monaco, language)
+        configureMonaco(monaco, editorType, hosts, template.templateType)
     }
 
-    const handleEditorDidMount = (editor: any, monaco: Monaco) => {
+    const handleEditorDidMount = (editor: editor.IStandaloneCodeEditor, monaco: Monaco) => {
         editorRef.current = editor
         monacoRef.current = monaco
+
+        setupSuggestWidget(editor)
     }
 
-    return (
-        <Box>
-            {templateType === SUBSCRIPTION_TEMPLATE_TYPE.XRAY_JSON && (
-                <XrayJsonTemplateDescriptionWidget />
-            )}
+    useLayoutEffect(() => {
+        document.body.addEventListener('wheel', preventBackScroll, {
+            passive: false
+        })
+        return () => {
+            document.body.removeEventListener('wheel', preventBackScroll)
+        }
+    }, [])
 
+    return (
+        <Box className={clsx(styles.container, isFullscreen && fullscreenClasses.overlay)}>
             <Paper
-                mb="md"
+                className={clsx(
+                    styles.editorWrapper,
+                    !isFullscreen && editorClasses.editorAttached,
+                    isFullscreen && fullscreenClasses.fill
+                )}
                 p={0}
-                radius="xs"
+                ref={editorWrapperRef}
+                pos="relative"
                 style={{
-                    resize: 'vertical',
-                    overflow: 'hidden',
-                    height: '700px',
                     direction: 'ltr'
                 }}
                 withBorder
             >
-                <Editor
+                {isFullscreen && (
+                    <FullscreenToggleButton
+                        isFullscreen={isFullscreen}
+                        onToggle={toggleFullscreen}
+                    />
+                )}
+
+                <CodeEditor
                     beforeMount={handleEditorWillMount}
                     className={styles.monacoEditor}
-                    defaultLanguage={language}
-                    loading={t('config-editor.widget.loading-editor')}
+                    defaultLanguage={editorType}
                     onMount={handleEditorDidMount}
                     options={{
-                        autoClosingBrackets: 'always',
-                        autoClosingQuotes: 'always',
-                        autoIndent: 'full',
-                        automaticLayout: true,
-                        bracketPairColorization: {
-                            enabled: true,
-                            independentColorPoolPerBracketType: true
-                        },
-                        detectIndentation: true,
-                        folding: true,
-                        foldingStrategy: 'indentation',
-                        fontSize: 14,
-                        formatOnPaste: true,
-                        formatOnType: true,
-                        guides: {
-                            bracketPairs: true,
-                            indentation: true
-                        },
-                        scrollbar: {
-                            alwaysConsumeMouseWheel: false
-                        },
-                        smoothScrolling: true,
-                        insertSpaces: true,
-                        minimap: { enabled: true },
-                        scrollBeyondLastLine: false,
-                        tabSize: 2,
                         renderValidationDecorations: 'on',
                         quickSuggestions: {
                             strings: true,
                             comments: true,
                             other: true
-                        },
-                        padding: {
-                            top: 33
                         }
                     }}
-                    theme={'GithubDark'}
+                    path={getTemplateModelPath(template.templateType)}
                     value={getConfig() || ''}
                 />
             </Paper>
 
-            <Card className={styles.footer} h="auto" m="0" mt="md" pos="sticky">
-                <TemplateEditorActionsFeature
-                    editorRef={editorRef}
-                    language={language}
-                    monacoRef={monacoRef}
-                    templateType={templateType}
-                />
-            </Card>
+            {!isFullscreen && (
+                <EditorFooter ref={footerRef}>
+                    <FullscreenToggleButton
+                        floating={false}
+                        isFullscreen={isFullscreen}
+                        onToggle={toggleFullscreen}
+                        size={36}
+                    />
+
+                    <TemplateEditorActionsFeature
+                        editorRef={editorRef}
+                        editorType={editorType}
+                        template={template}
+                    />
+                </EditorFooter>
+            )}
         </Box>
     )
 }

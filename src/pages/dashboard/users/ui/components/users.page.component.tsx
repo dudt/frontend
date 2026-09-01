@@ -1,19 +1,13 @@
-import { useTranslation } from 'react-i18next'
-import { useMediaQuery } from '@mantine/hooks'
-import { useEffect, useState } from 'react'
-import { motion } from 'framer-motion'
 import { Stack } from '@mantine/core'
-
-import { UserAccessibleNodesModalWidget } from '@widgets/dashboard/users/user-accessible-nodes-modal/user-accessible-nodes.modal.widget'
-import { DetailedUserInfoDrawerWidget } from '@widgets/dashboard/users/detailed-user-info-drawer/detailed-user-info-drawer.widget'
-import { MobileWarningOverlay } from '@shared/ui/mobile-warning-overlay/mobile-warning-overlay'
-import { CreateUserModalWidget } from '@widgets/dashboard/users/create-user-modal'
-import { ViewUserModal } from '@widgets/dashboard/users/view-user-modal'
-import { UserTableWidget } from '@widgets/dashboard/users/users-table'
+import { useMediaQuery } from '@mantine/hooks'
 import { UsersMetrics } from '@widgets/dashboard/users/users-metrics'
-import { PageHeader } from '@shared/ui/page-header'
-import { ROUTES } from '@shared/constants'
+import { UserTableWidget } from '@widgets/dashboard/users/users-table'
+import { motion } from 'framer-motion'
+import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+
 import { LoadingScreen } from '@shared/ui'
+import { MobileWarningOverlay } from '@shared/ui/mobile-warning-overlay/mobile-warning-overlay'
 import { Page } from '@shared/ui/page'
 
 const DeferredUserTableWidget = () => {
@@ -25,7 +19,7 @@ const DeferredUserTableWidget = () => {
     }, [])
 
     if (!shouldRender) {
-        return <LoadingScreen height="60vh" />
+        return <LoadingScreen height="80vh" />
     }
 
     return (
@@ -45,25 +39,12 @@ export default function UsersPageComponent() {
 
     return (
         <Page title={t('constants.users')}>
-            <PageHeader
-                breadcrumbs={[
-                    { label: t('constants.dashboard'), href: ROUTES.DASHBOARD.HOME },
-                    { label: t('constants.users') }
-                ]}
-                title={t('constants.users')}
-            />
-
             <Stack>
                 {isMobile && <MobileWarningOverlay />}
                 <UsersMetrics />
 
                 <DeferredUserTableWidget />
             </Stack>
-
-            <ViewUserModal key="view-user-modal" />
-            <CreateUserModalWidget key="create-user-widget" />
-            <DetailedUserInfoDrawerWidget key="detailed-user-info-drawer" />
-            <UserAccessibleNodesModalWidget key="user-accessible-nodes-modal" />
         </Page>
     )
 }

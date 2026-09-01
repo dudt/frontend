@@ -1,11 +1,17 @@
 import { createQueryKeys } from '@lukemorales/query-key-factory'
-import { GetStatusCommand } from '@remnawave/backend-contract'
-import { notifications } from '@mantine/notifications'
+import {
+    GetPasskeyAuthenticationOptionsCommand,
+    GetStatusCommand
+} from '@remnawave/backend-contract'
+import { keepPreviousData } from '@tanstack/react-query'
 
-import { createGetQueryHook } from '../../tsq-helpers'
+import { createGetQueryHook, errorHandler } from '../../tsq-helpers'
 
 export const authQueryKeys = createQueryKeys('auth', {
     getAuthStatus: {
+        queryKey: null
+    },
+    getPasskeyAuthenticationOptions: {
         queryKey: null
     }
 })
@@ -15,13 +21,18 @@ export const useGetAuthStatus = createGetQueryHook({
     responseSchema: GetStatusCommand.ResponseSchema,
     getQueryKey: () => authQueryKeys.getAuthStatus.queryKey,
     rQueryParams: {
-        refetchOnMount: false
+        refetchOnMount: false,
+        placeholderData: keepPreviousData
     },
-    errorHandler: (error) => {
-        notifications.show({
-            title: 'Authentication Error',
-            message: error instanceof Error ? error.message : `Request failed with unknown error.`,
-            color: 'red'
-        })
-    }
+    errorHandler: (error) => errorHandler(error, 'Authentication Error')
+})
+
+export const usePasskeyAuthenticationOptions = createGetQueryHook({
+    endpoint: GetPasskeyAuthenticationOptionsCommand.TSQ_url,
+    responseSchema: GetPasskeyAuthenticationOptionsCommand.ResponseSchema,
+    getQueryKey: () => authQueryKeys.getPasskeyAuthenticationOptions.queryKey,
+    rQueryParams: {
+        enabled: false
+    },
+    errorHandler: (error) => errorHandler(error, 'Authentication Error')
 })

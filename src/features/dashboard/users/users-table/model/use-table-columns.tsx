@@ -1,53 +1,77 @@
-/* eslint-disable camelcase */
+import { MRT_ColumnDef } from '@kastov/mantine-react-table-open'
+import { Badge, ComboboxItem, Group, SelectProps, Stack, Text, Tooltip } from '@mantine/core'
 import {
-    GetAllNodesCommand,
-    GetAllUsersCommand,
+    GetNodesCommand,
+    GetUsersCommand,
+    GetExternalSquadsCommand,
     GetInternalSquadsCommand
 } from '@remnawave/backend-contract'
-import { Badge, Group, Stack, Text, Tooltip } from '@mantine/core'
-import { MRT_ColumnDef } from 'mantine-react-table'
-import { useTranslation } from 'react-i18next'
 import { useMemo } from 'react'
-import dayjs from 'dayjs'
+import { useTranslation } from 'react-i18next'
 
-import { ConnectedNodeColumnEntity } from '@entities/dashboard/users/ui/table-columns/connected-node'
-import { UsernameColumnEntity } from '@entities/dashboard/users/ui/table-columns/username'
-import { StatusColumnEntity } from '@entities/dashboard/users/ui/table-columns/status'
-import { DataUsageColumnEntity } from '@entities/dashboard/users/ui'
-import { prettyBytesToAnyUtil } from '@shared/utils/bytes'
+import { prettifyBytesUtil } from '@shared/utils/bytes'
 import { formatInt } from '@shared/utils/misc'
+import { formatTimeUtil } from '@shared/utils/time-utils'
+
+import { DataUsageColumnEntity } from '@entities/dashboard/users/ui'
+import { ConnectedNodeColumnEntity } from '@entities/dashboard/users/ui/table-columns/connected-node'
+import { StatusColumnEntity } from '@entities/dashboard/users/ui/table-columns/status'
+import { UsernameColumnEntity } from '@entities/dashboard/users/ui/table-columns/username'
 
 import { NodeSelectItem, NodeSelectItemProps } from './node-select-item'
+import { TrafficLimitRangeFilter } from './traffic-limit-range-filter'
+
+const renderSelectOption: SelectProps['renderOption'] = ({ option }) => {
+    const item = option as ComboboxItem & { membersCount: number }
+    return (
+        <Group flex="1" gap="xs" w="100%" wrap="nowrap">
+            <Text size="sm" truncate="end">
+                {item.label}
+            </Text>
+            <Badge color="gray" ml="auto" size="sm" style={{ flexShrink: 0 }} variant="light">
+                {formatInt(item?.membersCount ?? 0)}
+            </Badge>
+        </Group>
+    )
+}
 
 export const useUserTableColumns = (
     internalSquads?: GetInternalSquadsCommand.Response['response'],
-    nodes?: GetAllNodesCommand.Response['response']
+    externalSquads?: GetExternalSquadsCommand.Response['response'],
+    nodes?: GetNodesCommand.Response['response']
 ) => {
-    const { t } = useTranslation()
+    const { t, i18n } = useTranslation()
 
-    return useMemo<MRT_ColumnDef<GetAllUsersCommand.Response['response']['users'][number]>[]>(
+    return useMemo<MRT_ColumnDef<GetUsersCommand.Response['response']['users'][number]>[]>(
         () => [
             {
                 accessorKey: 'username',
-                header: t('use-table-columns.username'),
+                header: t('common.field.username'),
                 Cell: ({ cell }) => <UsernameColumnEntity user={cell.row.original} />,
                 mantineTableBodyCellProps: {
                     align: 'left'
                 },
                 minSize: 150,
                 maxSize: 300,
-                size: 220
+                size: 220,
+                columnFilterModeOptions: ['contains', 'equals', 'startsWith', 'endsWith'],
+                enableColumnFilterModes: true,
+                enableColumnFilter: true
+            },
+            {
+                accessorKey: 'id',
+                header: 'ID',
+                enableColumnFilterModes: false,
+                accessorFn: (originalRow) => originalRow.id,
+                size: 80
             },
             {
                 accessorKey: 'status',
-                header: t('use-table-columns.status'),
+                header: t('common.field.status'),
                 Cell: ({ cell }) => <StatusColumnEntity need="badge" user={cell.row.original} />,
                 filterVariant: 'select',
                 enableColumnFilterModes: false,
                 enableSorting: false,
-                mantineFilterSelectProps: {
-                    data: ['ACTIVE', 'DISABLED', 'LIMITED', 'EXPIRED']
-                },
                 mantineTableBodyCellProps: {
                     align: 'center'
                 }
@@ -57,15 +81,23 @@ export const useUserTableColumns = (
                 header: t('use-table-columns.last-connected-node'),
                 Cell: ({ cell }) => (
                     <ConnectedNodeColumnEntity
-                        lastConnectedNode={cell.row.original.lastConnectedNode}
+                        node={
+                            nodes?.find(
+                                (node) =>
+                                    node.uuid ===
+                                    cell.row.original.userTraffic.lastConnectedNodeUuid
+                            ) ?? undefined
+                        }
                     />
                 ),
                 filterVariant: 'select',
                 mantineFilterSelectProps: {
                     comboboxProps: {
-                        transitionProps: { transition: 'fade', duration: 200 }
+                        transitionProps: { transition: 'fade', duration: 200 },
+                        width: 'fit-content'
                     },
                     checkIconPosition: 'left',
+                    clearSectionMode: 'clear',
                     data:
                         nodes?.map((node) => ({
                             label: node.name,
@@ -78,6 +110,7 @@ export const useUserTableColumns = (
                     }
                 },
                 enableSorting: false,
+                enableColumnFilterModes: false,
                 mantineTableBodyCellProps: {
                     align: 'center'
                 }
@@ -107,12 +140,53 @@ export const useUserTableColumns = (
                 size: 300
             },
             {
+                accessorKey: 'usedTrafficPercentage',
+                header: t('use-table-columns.used-traffic'),
+                Cell: ({ cell }) => {
+                    const { usedTrafficBytes } = cell.row.original.userTraffic ?? {}
+                    const limit = cell.row.original.trafficLimitBytes ?? 0
+
+                    let percentage = 0
+                    if (limit > 0 && typeof usedTrafficBytes === 'number') {
+                        percentage = (usedTrafficBytes * 100) / limit
+                    }
+
+                    return <Text fw={600}>{percentage.toFixed(2)}%</Text>
+                },
+                mantineTableBodyCellProps: {
+                    align: 'center'
+                },
+                minSize: 80,
+                enableColumnFilterModes: false,
+                enableColumnFilter: false,
+                maxSize: 700,
+                size: 180
+            },
+            {
+                accessorKey: 'trafficLimitBytes',
+                header: t('traffic-limits-card.traffic-limit'),
+                Cell: ({ cell }) => {
+                    const limitBytes = cell.row.original.trafficLimitBytes ?? 0
+                    return limitBytes === 0 ? '∞' : prettifyBytesUtil(limitBytes) || '0 B'
+                },
+                mantineTableBodyCellProps: {
+                    align: 'center'
+                },
+                filterVariant: 'range',
+                Filter: ({ column, rangeFilterIndex }) =>
+                    rangeFilterIndex === 0 ? <TrafficLimitRangeFilter column={column} /> : null,
+                minSize: 230,
+                enableColumnFilterModes: false,
+                enableColumnFilter: true,
+                size: 230
+            },
+            {
                 accessorKey: 'shortUuid',
                 header: t('use-table-columns.sub-link'),
                 accessorFn: (originalRow) => originalRow.shortUuid,
                 minSize: 400,
                 maxSize: 800,
-
+                enableColumnFilterModes: false,
                 mantineTableBodyCellProps: {
                     align: 'center'
                 }
@@ -120,11 +194,11 @@ export const useUserTableColumns = (
 
             {
                 accessorKey: 'description',
-                header: t('use-table-columns.description'),
+                header: t('common.field.description'),
                 accessorFn: (originalRow) => originalRow.description || '–',
                 minSize: 250,
                 size: 400,
-
+                enableColumnFilterModes: false,
                 mantineTableBodyCellProps: {
                     align: 'center',
                     style: { whiteSpace: 'normal', wordBreak: 'break-word' }
@@ -137,6 +211,7 @@ export const useUserTableColumns = (
                 accessorFn: (originalRow) => originalRow.telegramId || '–',
                 minSize: 100,
                 size: 200,
+                enableColumnFilterModes: false,
                 mantineTableBodyCellProps: {
                     align: 'center'
                 }
@@ -144,29 +219,47 @@ export const useUserTableColumns = (
 
             {
                 accessorKey: 'tag',
-                header: 'Tag',
+                header: t('common.field.tag'),
                 Cell: ({ cell }) => (
                     <Text ff="monospace" fw={500} size="md">
                         {cell.row.original.tag || '–'}
                     </Text>
                 ),
+
                 mantineTableBodyCellProps: {
                     align: 'center'
+                },
+
+                columnFilterModeOptions: ['equals'],
+                enableColumnFilterModes: false,
+                enableColumnFilter: true,
+                filterVariant: 'multi-select',
+                mantineFilterSelectProps: {
+                    comboboxProps: {
+                        transitionProps: { transition: 'fade', duration: 200 },
+                        width: 'fit-content'
+                    },
+                    checkIconPosition: 'left'
                 }
             },
-
             {
                 accessorKey: 'activeInternalSquads',
-                header: 'Internal Squads',
+                header: t('use-table-columns.internal-squads'),
                 filterVariant: 'select',
                 enableColumnFilterModes: false,
                 enableSorting: false,
                 mantineFilterSelectProps: {
+                    clearSectionMode: 'clear',
+                    comboboxProps: {
+                        width: 'fit-content'
+                    },
                     data:
                         internalSquads?.internalSquads.map((squad) => ({
-                            label: `${squad.name} (${formatInt(squad.info.membersCount)})`,
-                            value: squad.uuid
-                        })) ?? []
+                            label: squad.name,
+                            value: squad.uuid,
+                            membersCount: squad.info.membersCount
+                        })) ?? [],
+                    renderOption: renderSelectOption
                 },
                 Cell: ({ cell }) => {
                     const squads = cell.row.original.activeInternalSquads
@@ -175,40 +268,67 @@ export const useUserTableColumns = (
                         return <Text c="dimmed">–</Text>
                     }
 
-                    if (squads.length === 1) {
-                        return (
-                            <Group gap="xs" wrap="nowrap">
-                                {squads.map((squad) => (
-                                    <Badge key={squad.uuid} size="sm" variant="light">
-                                        {squad.name}
-                                    </Badge>
-                                ))}
-                            </Group>
-                        )
-                    }
+                    const visibleSquads = squads.slice(0, 1)
+                    const hiddenSquads = squads.slice(1)
 
                     return (
-                        <Tooltip
-                            bg="dark.7"
-                            label={
-                                <Stack gap="xs">
-                                    {squads.map((squad) => (
-                                        <Badge fullWidth key={squad.uuid} size="sm" variant="light">
-                                            {squad.name}
-                                        </Badge>
-                                    ))}
-                                </Stack>
-                            }
-                            multiline
-                            position="top"
-                        >
-                            <Group gap="xs" style={{ cursor: 'help' }} wrap="nowrap">
-                                <Badge color="gray" size="sm" variant="outline">
-                                    {squads.length} squads
+                        <Group gap="xs" wrap="nowrap">
+                            {visibleSquads.map((squad) => (
+                                <Badge key={squad.uuid} variant="soft">
+                                    {squad.name}
                                 </Badge>
-                            </Group>
-                        </Tooltip>
+                            ))}
+
+                            {hiddenSquads.length > 0 && (
+                                <Tooltip
+                                    label={
+                                        <Stack gap="xs">
+                                            {hiddenSquads.map((squad) => (
+                                                <Badge fullWidth key={squad.uuid} variant="soft">
+                                                    {squad.name}
+                                                </Badge>
+                                            ))}
+                                        </Stack>
+                                    }
+                                    multiline
+                                    position="top"
+                                >
+                                    <Badge color="violet" style={{ cursor: 'help' }} variant="soft">
+                                        +{hiddenSquads.length}
+                                    </Badge>
+                                </Tooltip>
+                            )}
+                        </Group>
                     )
+                }
+            },
+
+            {
+                accessorKey: 'externalSquadUuid',
+                header: t('constants.external-squads'),
+                filterVariant: 'select',
+                enableColumnFilterModes: false,
+                enableSorting: false,
+                mantineFilterSelectProps: {
+                    limit: 100,
+                    data:
+                        externalSquads?.externalSquads.map((squad) => ({
+                            label: squad.name,
+                            value: squad.uuid
+                        })) ?? []
+                },
+                Cell: ({ cell }) => {
+                    const userSquad = cell.row.original.externalSquadUuid
+
+                    if (!userSquad) {
+                        return <Text c="dimmed">–</Text>
+                    }
+
+                    const squadName = externalSquads?.externalSquads.find(
+                        (squad) => userSquad === squad.uuid
+                    )?.name
+
+                    return squadName || '–'
                 }
             },
 
@@ -218,26 +338,33 @@ export const useUserTableColumns = (
                 accessorFn: (originalRow) => originalRow.email || '–',
                 minSize: 100,
                 size: 200,
+                enableColumnFilterModes: false,
                 mantineTableBodyCellProps: {
                     align: 'center'
                 }
             },
 
             {
-                accessorKey: 'firstConnectedAt',
-                header: 'First connected at',
-                accessorFn: (originalRow) =>
-                    originalRow.firstConnectedAt
-                        ? dayjs(originalRow.firstConnectedAt).format('DD/MM/YYYY, HH:mm')
-                        : '–',
+                accessorKey: 'userTraffic.firstConnectedAt',
+                header: t('common.field.first-connected-at'),
+                accessorFn: (originalRow) => {
+                    if (originalRow.userTraffic && originalRow.userTraffic.firstConnectedAt) {
+                        return formatTimeUtil({
+                            time: originalRow.userTraffic.firstConnectedAt,
+                            template: 'TIME_FIRST_DATETIME',
+                            language: i18n.language
+                        })
+                    }
+                    return '–'
+                },
                 minSize: 250,
-                size: 400,
-
+                size: 250,
                 enableColumnFilterModes: false,
                 enableColumnFilter: false,
 
                 mantineTableBodyCellProps: {
-                    align: 'center'
+                    align: 'left',
+                    ff: 'monospace'
                 }
             },
 
@@ -246,68 +373,50 @@ export const useUserTableColumns = (
                 header: t('use-table-columns.traffic-reset'),
                 accessorFn: (originalRow) =>
                     originalRow.lastTrafficResetAt
-                        ? dayjs(originalRow.lastTrafficResetAt).format('DD/MM/YYYY, HH:mm')
+                        ? formatTimeUtil({
+                              time: originalRow.lastTrafficResetAt,
+                              template: 'TIME_FIRST_DATETIME',
+                              language: i18n.language
+                          })
                         : t('use-table-columns.never'),
-                minSize: 170,
-                maxSize: 400,
-                size: 170,
+                minSize: 250,
+                size: 250,
                 enableClickToCopy: false,
-
                 enableColumnFilterModes: false,
                 enableColumnFilter: false,
                 mantineTableBodyCellProps: {
-                    align: 'center'
+                    align: 'left',
+                    ff: 'monospace'
                 }
             },
             {
-                accessorKey: 'onlineAt',
+                accessorKey: 'userTraffic.onlineAt',
                 header: t('use-table-columns.online-at'),
                 accessorFn: (originalRow) =>
-                    originalRow.onlineAt
-                        ? dayjs(originalRow.onlineAt).format('DD/MM/YYYY, HH:mm')
+                    originalRow.userTraffic && originalRow.userTraffic.onlineAt
+                        ? formatTimeUtil({
+                              time: originalRow.userTraffic.onlineAt,
+                              template: 'TIME_FIRST_DATETIME',
+                              language: i18n.language
+                          })
                         : t('use-table-columns.never'),
-                minSize: 170,
-                maxSize: 400,
-                size: 170,
+                minSize: 250,
+                size: 250,
                 enableColumnFilterModes: false,
                 enableColumnFilter: false,
                 mantineTableBodyCellProps: {
-                    align: 'center'
-                }
-            },
-            {
-                accessorKey: 'subLastUserAgent',
-                header: t('use-table-columns.last-ua'),
-                accessorFn: (originalRow) => originalRow.subLastUserAgent || '–',
-                minSize: 250,
-                size: 400,
-                mantineTableBodyCellProps: {
-                    align: 'center'
+                    align: 'left',
+                    ff: 'monospace'
                 }
             },
 
             {
-                accessorKey: 'subLastOpenedAt',
-                header: 'Sub last opened at',
-                accessorFn: (originalRow) =>
-                    originalRow.subLastOpenedAt
-                        ? dayjs(originalRow.subLastOpenedAt).format('DD/MM/YYYY, HH:mm')
-                        : '–',
-                minSize: 250,
-                size: 400,
-
-                enableColumnFilterModes: false,
-                enableColumnFilter: false,
-
-                mantineTableBodyCellProps: {
-                    align: 'center'
-                }
-            },
-            {
-                accessorKey: 'lifetimeUsedTrafficBytes',
+                accessorKey: 'userTraffic.lifetimeUsedTrafficBytes',
                 header: t('use-table-columns.lifetime-used'),
                 accessorFn: (originalRow) =>
-                    prettyBytesToAnyUtil(originalRow.lifetimeUsedTrafficBytes) || '–',
+                    originalRow.userTraffic && originalRow.userTraffic.lifetimeUsedTrafficBytes
+                        ? prettifyBytesUtil(originalRow.userTraffic.lifetimeUsedTrafficBytes)
+                        : '–',
                 minSize: 170,
                 maxSize: 300,
                 size: 170,
@@ -322,43 +431,82 @@ export const useUserTableColumns = (
                 header: t('use-table-columns.sub-link-revoked-at'),
                 accessorFn: (originalRow) =>
                     originalRow.subRevokedAt
-                        ? dayjs(originalRow.subRevokedAt).format('DD/MM/YYYY, HH:mm')
+                        ? formatTimeUtil({
+                              time: originalRow.subRevokedAt,
+                              template: 'TIME_FIRST_DATETIME',
+                              language: i18n.language
+                          })
                         : t('use-table-columns.never'),
-                minSize: 170,
-                maxSize: 170,
-                size: 170,
+                minSize: 250,
+                size: 250,
                 enableColumnFilterModes: false,
                 enableColumnFilter: false,
                 mantineTableBodyCellProps: {
-                    align: 'center'
+                    align: 'left',
+                    ff: 'monospace'
                 }
             },
             {
                 accessorKey: 'createdAt',
                 header: t('use-table-columns.created-at'),
                 accessorFn: (originalRow) =>
-                    dayjs(originalRow.createdAt).format('DD/MM/YYYY, HH:mm'),
-                minSize: 170,
-                maxSize: 170,
-                size: 170,
+                    formatTimeUtil({
+                        time: originalRow.createdAt,
+                        template: 'TIME_FIRST_DATETIME',
+                        language: i18n.language
+                    }),
+                minSize: 250,
+                size: 250,
                 enableColumnFilterModes: false,
                 enableColumnFilter: false,
+                mantineTableBodyCellProps: {
+                    align: 'left',
+                    ff: 'monospace'
+                }
+            },
+            {
+                accessorKey: 'vlessUuid',
+                header: 'Vless UUID',
+                accessorFn: (originalRow) => originalRow.vlessUuid,
+                minSize: 400,
+                enableColumnFilterModes: false,
+                maxSize: 800,
                 mantineTableBodyCellProps: {
                     align: 'center'
                 }
             },
             {
-                accessorKey: 'uuid',
-                header: 'UUID',
-                accessorFn: (originalRow) => originalRow.uuid,
+                accessorKey: 'trojanPassword',
+                header: 'Trojan Password',
+                accessorFn: (originalRow) => originalRow.trojanPassword,
                 minSize: 400,
                 maxSize: 800,
-
+                enableColumnFilterModes: false,
                 mantineTableBodyCellProps: {
                     align: 'center'
                 }
+            },
+            {
+                accessorKey: 'hwidDeviceLimit',
+                header: 'HWID Device Limit',
+                accessorFn: (originalRow) => originalRow.hwidDeviceLimit ?? '–',
+                columnFilterModeOptions: [
+                    'equals',
+                    'greaterThan',
+                    'greaterThanOrEqualTo',
+                    'lessThan',
+                    'lessThanOrEqualTo',
+                    'between'
+                ],
+                enableColumnFilterModes: true,
+                enableColumnFilter: true,
+                mantineFilterInputProps: {
+                    type: 'number',
+                    min: 0,
+                    max: 9_999
+                }
             }
         ],
-        []
+        [t, nodes, internalSquads, externalSquads, i18n.language]
     )
 }

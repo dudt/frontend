@@ -1,17 +1,19 @@
+import { createQueryKeys } from '@lukemorales/query-key-factory'
 import {
     GetBandwidthStatsCommand,
+    GetHttpStatsCommand,
+    GetMetadataCommand,
     GetNodesMetricsCommand,
     GetNodesStatisticsCommand,
+    GetRecapCommand,
     GetRemnawaveHealthCommand,
     GetStatsCommand
 } from '@remnawave/backend-contract'
-import { createQueryKeys } from '@lukemorales/query-key-factory'
 import { keepPreviousData } from '@tanstack/react-query'
-import { notifications } from '@mantine/notifications'
 
 import { getUserTimezoneUtil, sToMs } from '@shared/utils/time-utils'
 
-import { createGetQueryHook } from '../../tsq-helpers'
+import { createGetQueryHook, errorHandler } from '../../tsq-helpers'
 
 const STALE_TIME = 5_000
 const REFETCH_INTERVAL = 5_100
@@ -31,6 +33,15 @@ export const systemQueryKeys = createQueryKeys('system', {
     },
     getNodesMetrics: {
         queryKey: null
+    },
+    getRemnawaveMetadata: {
+        queryKey: null
+    },
+    getRecap: {
+        queryKey: null
+    },
+    getHttpStats: {
+        queryKey: null
     }
 })
 
@@ -47,13 +58,7 @@ export const useGetSystemStats = createGetQueryHook({
     queryParams: {
         tz: getUserTimezoneUtil()
     },
-    errorHandler: (error) => {
-        notifications.show({
-            title: `Get System Stats`,
-            message: error instanceof Error ? error.message : `Request failed with unknown error.`,
-            color: 'red'
-        })
-    }
+    errorHandler: (error) => errorHandler(error, 'Get System Stats')
 })
 
 export const useGetBandwidthStats = createGetQueryHook({
@@ -69,13 +74,7 @@ export const useGetBandwidthStats = createGetQueryHook({
     queryParams: {
         tz: getUserTimezoneUtil()
     },
-    errorHandler: (error) => {
-        notifications.show({
-            title: `Get Bandwidth Stats`,
-            message: error instanceof Error ? error.message : `Request failed with unknown error.`,
-            color: 'red'
-        })
-    }
+    errorHandler: (error) => errorHandler(error, 'Get Bandwidth Stats')
 })
 
 export const useGetNodesStatisticsCommand = createGetQueryHook({
@@ -91,13 +90,7 @@ export const useGetNodesStatisticsCommand = createGetQueryHook({
     queryParams: {
         tz: getUserTimezoneUtil()
     },
-    errorHandler: (error) => {
-        notifications.show({
-            title: `Get Nodes Statistics`,
-            message: error instanceof Error ? error.message : `Request failed with unknown error.`,
-            color: 'red'
-        })
-    }
+    errorHandler: (error) => errorHandler(error, 'Get Nodes Statistics')
 })
 
 export const useGetRemnawaveHealth = createGetQueryHook({
@@ -109,13 +102,7 @@ export const useGetRemnawaveHealth = createGetQueryHook({
         staleTime: sToMs(10),
         refetchInterval: sToMs(10)
     },
-    errorHandler: (error) => {
-        notifications.show({
-            title: `Get Remnawave Health`,
-            message: error instanceof Error ? error.message : `Request failed with unknown error.`,
-            color: 'red'
-        })
-    }
+    errorHandler: (error) => errorHandler(error, 'Get Remnawave Health')
 })
 
 export const useGetNodesMetrics = createGetQueryHook({
@@ -127,11 +114,40 @@ export const useGetNodesMetrics = createGetQueryHook({
         staleTime: sToMs(30),
         refetchInterval: sToMs(30)
     },
-    errorHandler: (error) => {
-        notifications.show({
-            title: `Get Nodes Metrics`,
-            message: error instanceof Error ? error.message : `Request failed with unknown error.`,
-            color: 'red'
-        })
-    }
+    errorHandler: (error) => errorHandler(error, 'Get Nodes Metrics')
+})
+
+export const useGetRemnawaveMetadata = createGetQueryHook({
+    endpoint: GetMetadataCommand.TSQ_url,
+    responseSchema: GetMetadataCommand.ResponseSchema,
+    getQueryKey: () => systemQueryKeys.getRemnawaveMetadata.queryKey,
+    rQueryParams: {
+        placeholderData: keepPreviousData,
+        refetchOnMount: false,
+        staleTime: sToMs(3_600)
+    },
+    errorHandler: (error) => errorHandler(error, 'Get Remnawave Metadata')
+})
+
+export const useGetRecap = createGetQueryHook({
+    endpoint: GetRecapCommand.TSQ_url,
+    responseSchema: GetRecapCommand.ResponseSchema,
+    getQueryKey: () => systemQueryKeys.getRecap.queryKey,
+    rQueryParams: {
+        placeholderData: keepPreviousData,
+        refetchOnMount: true,
+        staleTime: sToMs(60)
+    },
+    errorHandler: (error) => errorHandler(error, 'Get Recap')
+})
+
+export const useGetHttpStats = createGetQueryHook({
+    endpoint: GetHttpStatsCommand.TSQ_url,
+    responseSchema: GetHttpStatsCommand.ResponseSchema,
+    getQueryKey: () => systemQueryKeys.getHttpStats.queryKey,
+    rQueryParams: {
+        placeholderData: keepPreviousData,
+        refetchOnMount: true
+    },
+    errorHandler: (error) => errorHandler(error, 'Get Http Stats')
 })

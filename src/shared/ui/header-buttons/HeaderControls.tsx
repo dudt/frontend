@@ -1,11 +1,13 @@
 import { BoxProps, Group } from '@mantine/core'
 
-import { TelegramControl } from './TelegramControl'
-import { LanguageControl } from './LanguageControl'
-import { SupportControl } from './SupportControl'
-import { RefreshControl } from './RefreshControl'
 import { GithubControl } from './GithubControl'
+import { LanguageControl } from './LanguageControl'
 import { LogoutControl } from './LogoutControl'
+import { PrimeControl } from './PrimeControl'
+import { RecapControl } from './RecapControl'
+import { SupportControl } from './SupportControl'
+import { TelegramControl } from './TelegramControl'
+import { VersionControl } from './VersionControl'
 
 interface HeaderControlsProps extends BoxProps {
     githubLink?: string
@@ -15,9 +17,11 @@ interface HeaderControlsProps extends BoxProps {
     withGithub?: boolean
     withLanguage?: boolean
     withLogout?: boolean
-    withRefresh?: boolean
+    withPrime?: boolean
+    withRecap?: boolean
     withSupport?: boolean
     withTelegram?: boolean
+    withVersion?: boolean
 }
 
 export function HeaderControls({
@@ -26,8 +30,10 @@ export function HeaderControls({
     withTelegram = true,
     withSupport = true,
     withLogout = true,
-    withRefresh = true,
     withLanguage = true,
+    withVersion = true,
+    withRecap = false,
+    withPrime = false,
     telegramLink,
     stars,
     isGithubLoading,
@@ -36,12 +42,15 @@ export function HeaderControls({
     return (
         <Group gap="xs" {...others}>
             {withTelegram && <TelegramControl link={telegramLink} />}
+            {withPrime && <PrimeControl />}
             {withSupport && <SupportControl />}
+
+            {withVersion && <VersionControl />}
             {withGithub && (
                 <GithubControl isLoading={isGithubLoading} link={githubLink!} stars={stars} />
             )}
+            {withRecap && <RecapControl />}
             {withLanguage && <LanguageControl />}
-            {withRefresh && <RefreshControl />}
             {withLogout && <LogoutControl />}
         </Group>
     )

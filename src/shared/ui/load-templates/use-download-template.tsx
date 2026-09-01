@@ -1,17 +1,26 @@
-import { TSubscriptionTemplateType } from '@remnawave/backend-contract'
-import { notifications } from '@mantine/notifications'
-import { useTranslation } from 'react-i18next'
+import type { editor } from 'monaco-editor'
+
 import { modals } from '@mantine/modals'
+import { notifications } from '@mantine/notifications'
+import { TSubscriptionTemplateType } from '@remnawave/backend-contract'
+import { RefObject } from 'react'
+import { useTranslation } from 'react-i18next'
+import { TbDownload } from 'react-icons/tb'
 
 import { IDownloadableSubscriptionTemplate } from '@shared/constants/templates'
 
+import { BaseOverlayHeader } from '../overlays/base-overlay-header'
 import { TemplateDownloadModal } from './template-selector.modal'
 
-export const useDownloadTemplate = (
-    templateType: TSubscriptionTemplateType,
-    editorRef: React.RefObject<unknown>,
-    editorType: 'SUBSCRIPTION' | 'XRAY_CORE'
-) => {
+interface IProps {
+    editorRef?: RefObject<editor.IStandaloneCodeEditor | null>
+    editorType: 'NODE_PLUGIN' | 'SRR' | 'SUBPAGE_CONFIG' | 'SUBSCRIPTION' | 'XRAY_CORE'
+    onLoadTemplate?: (content: string) => Promise<void>
+    templateType: 'NODE_PLUGIN' | 'SRR' | 'SUBPAGE_CONFIG' | TSubscriptionTemplateType
+}
+
+export const useDownloadTemplate = (props: IProps) => {
+    const { editorRef, editorType, onLoadTemplate, templateType } = props
     const { t } = useTranslation()
 
     const loadTemplate = async (template: IDownloadableSubscriptionTemplate) => {
@@ -24,13 +33,11 @@ export const useDownloadTemplate = (
 
             const content = await response.text()
 
-            if (
-                editorRef.current &&
-                typeof editorRef.current === 'object' &&
-                'setValue' in editorRef.current &&
-                typeof editorRef.current.setValue === 'function'
-            ) {
+            if (editorRef && editorRef.current) {
                 editorRef.current.setValue(content)
+                editorRef.current.getAction('editor.action.formatDocument')?.run()
+            } else if (onLoadTemplate) {
+                await onLoadTemplate(content)
             }
 
             notifications.show({
@@ -51,7 +58,14 @@ export const useDownloadTemplate = (
 
     const openDownloadModal = () => {
         const modalId = modals.open({
-            title: t('use-download-template.select-template-to-load'),
+            title: (
+                <BaseOverlayHeader
+                    iconColor="cyan"
+                    IconComponent={TbDownload}
+                    iconVariant="soft"
+                    title={t('use-download-template.select-template-to-load')}
+                />
+            ),
             centered: true,
             size: 'lg',
             children: (

@@ -1,45 +1,47 @@
-import { PiChartBarDuotone, PiCpuDuotone, PiMemoryDuotone } from 'react-icons/pi'
 import { GetStatsCommand } from '@remnawave/backend-contract'
 import { TFunction } from 'i18next'
+import { PiChartBarDuotone, PiCpuDuotone, PiMemoryFill, PiMemoryLight } from 'react-icons/pi'
 
-import { prettyBytesUtil, prettyBytesUtilWithoutPrefix } from '@shared/utils/bytes'
+import { IMetricCardProps } from '@shared/ui/metrics/metric-card'
+import { prettifyBytesUtil } from '@shared/utils/bytes'
 
 export const getSimpleMetrics = (
     systemInfo: GetStatsCommand.Response['response'],
     t: TFunction
-) => {
-    const { memory, users, nodes } = systemInfo
+): IMetricCardProps[] => {
+    const { memory, nodes } = systemInfo
 
-    const totalRamGB = prettyBytesUtil(memory.total) ?? 0
-    const usedRamGB = prettyBytesUtil(memory.active) ?? 0
+    const totalRamGB = prettifyBytesUtil(memory.total) ?? 0
+    const usedRamGB = prettifyBytesUtil(memory.used) ?? 0
 
     return [
         {
             value: nodes.totalOnline,
-            icon: PiCpuDuotone,
+            IconComponent: PiCpuDuotone,
             title: t('simple-metrics.total-online-on-nodes'),
-            color: 'var(--mantine-color-blue-4)'
+            iconVariant: 'soft',
+            iconColor: 'blue'
         },
         {
-            value: prettyBytesUtilWithoutPrefix(Number(users.totalTrafficBytes)) ?? 0,
-            icon: PiChartBarDuotone,
-            title: t('simple-metrics.total-traffic'),
-            color: 'var(--mantine-color-green-4)'
+            value: prettifyBytesUtil(Number(nodes.totalBytesLifetime)) ?? 0,
+            IconComponent: PiChartBarDuotone,
+            title: t('common.field.total-traffic'),
+            iconVariant: 'soft',
+            iconColor: 'green'
         },
         {
-            value: `${usedRamGB} / ${totalRamGB}`,
-            icon: PiMemoryDuotone,
+            value: usedRamGB,
+            IconComponent: PiMemoryLight,
             title: t('simple-metrics.ram-usage'),
-            color: 'var(--mantine-color-cyan-4)'
+            iconVariant: 'soft',
+            iconColor: 'cyan'
+        },
+        {
+            value: totalRamGB,
+            IconComponent: PiMemoryFill,
+            title: 'Total RAM',
+            iconVariant: 'soft',
+            iconColor: 'cyan'
         }
-        // {
-        //     value: dayjs
-        //         .duration(systemInfo.uptime, 'seconds')
-        //         .locale(i18n.language)
-        //         .humanize(false),
-        //     title: t('simple-metrics.system-uptime'),
-        //     icon: PiClockDuotone,
-        //     color: 'var(--mantine-color-gray-4)'
-        // }
     ]
 }

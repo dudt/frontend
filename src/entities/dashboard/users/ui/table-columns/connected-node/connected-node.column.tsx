@@ -1,10 +1,10 @@
-import ReactCountryFlag from 'react-country-flag'
 import { Group, Text } from '@mantine/core'
+import ReactCountryFlag from 'react-country-flag'
 
 import { IProps } from './interface'
 
 export function ConnectedNodeColumnEntity(props: IProps) {
-    const { lastConnectedNode } = props
+    const { node } = props
 
     return (
         <Group
@@ -16,9 +16,9 @@ export function ConnectedNodeColumnEntity(props: IProps) {
             }}
             wrap="nowrap"
         >
-            {lastConnectedNode?.countryCode && lastConnectedNode.countryCode !== 'XX' && (
+            {node?.countryCode && node.countryCode !== 'XX' && (
                 <ReactCountryFlag
-                    countryCode={lastConnectedNode.countryCode}
+                    countryCode={node.countryCode}
                     style={{
                         fontSize: '1.1em',
                         borderRadius: '2px'
@@ -26,7 +26,7 @@ export function ConnectedNodeColumnEntity(props: IProps) {
                 />
             )}
             <Text ff="monospace" fw={500} size="md">
-                {lastConnectedNode?.nodeName || '–'}
+                {node?.name || '–'}
             </Text>
         </Group>
     )

@@ -1,31 +1,22 @@
-import {
-    ActionIcon,
-    ActionIconGroup,
-    Button,
-    Group,
-    Modal,
-    Stack,
-    Text,
-    TextInput,
-    Tooltip
-} from '@mantine/core'
-import { CreateInternalSquadCommand } from '@remnawave/backend-contract'
-import { TbPlus, TbRefresh } from 'react-icons/tb'
-import { useDisclosure } from '@mantine/hooks'
+import { ActionIcon, ActionIconGroup, Group, Tooltip } from '@mantine/core'
 import { useTranslation } from 'react-i18next'
-import { useField } from '@mantine/form'
+import { TbPlus, TbRefresh } from 'react-icons/tb'
 
-import { QueryKeys, useCreateInternalSquad, useGetInternalSquads } from '@shared/api/hooks'
-import { MODALS, useModalsStore } from '@entities/dashboard/modal-store'
+import { showModal } from '@shared/_modals/show-modal'
+import { HelpActionIconShared } from '@shared/_modals/universal'
 import { queryClient } from '@shared/api'
+import { QueryKeys, useGetInternalSquads } from '@shared/api/hooks'
+import { UniversalSpotlightActionIconShared } from '@shared/ui/universal-spotlight'
 
-export const InternalSquadsHeaderActionButtonsFeature = () => {
+interface IProps {
+    internalSquadCount: number
+}
+
+export const InternalSquadsHeaderActionButtonsFeature = (props: IProps) => {
+    const { internalSquadCount } = props
+
     const { t } = useTranslation()
     const { isFetching } = useGetInternalSquads()
-
-    const { open: openModal, setInternalData } = useModalsStore()
-
-    const [opened, { open, close }] = useDisclosure(false)
 
     const handleUpdate = async () => {
         await queryClient.refetchQueries({
@@ -33,111 +24,45 @@ export const InternalSquadsHeaderActionButtonsFeature = () => {
         })
     }
 
-    const nameField = useField<CreateInternalSquadCommand.Request['name']>({
-        initialValue: '',
-        validateOnChange: true,
-        validate: (value) => {
-            const result = CreateInternalSquadCommand.RequestSchema.omit({
-                inbounds: true
-            }).safeParse({ name: value })
-            return result.success ? null : result.error.errors[0]?.message
-        }
-    })
-    const { mutate: createInternalSquad, isPending } = useCreateInternalSquad({
-        mutationFns: {
-            onSuccess: (data) => {
-                close()
-                nameField.reset()
-                handleUpdate()
-
-                setInternalData({
-                    internalState: data,
-                    modalKey: MODALS.INTERNAL_SQUAD_SHOW_INBOUNDS
-                })
-                openModal(MODALS.INTERNAL_SQUAD_SHOW_INBOUNDS)
-            },
-            onError: (error) => {
-                nameField.setError(error.message)
-            }
-        }
-    })
-
     return (
         <Group grow preventGrowOverflow={false} wrap="wrap">
+            <HelpActionIconShared hidden={false} screen="PAGE_INTERNAL_SQUADS" />
+
+            {internalSquadCount > 0 && <UniversalSpotlightActionIconShared />}
+
             <ActionIconGroup>
-                <Tooltip label={t('internal-squad-header-action-buttons.feature.update')} withArrow>
+                <Tooltip label={t('common.action.update')} withArrow>
                     <ActionIcon
                         loading={isFetching}
                         onClick={handleUpdate}
-                        radius="md"
-                        size="lg"
-                        variant="light"
+                        size="input-md"
+                        variant="soft"
                     >
-                        <TbRefresh size="18px" />
+                        <TbRefresh size="24px" />
                     </ActionIcon>
                 </Tooltip>
             </ActionIconGroup>
 
             <ActionIconGroup>
                 <Tooltip
-                    label={t('internal-squad-header-action-buttons.feature.create-internal-squad')}
+                    label={t('common.action.create')}
                     withArrow
                 >
-                    <ActionIcon color="teal" onClick={open} radius="md" size="lg" variant="light">
-                        <TbPlus size="18px" />
+                    <ActionIcon
+                        color="teal"
+                        onClick={() =>
+                            showModal('createModal', {
+                                createFrom: 'internalSquad',
+                                contentOptions: {}
+                            })
+                        }
+                        size="input-md"
+                        variant="soft"
+                    >
+                        <TbPlus size="24px" />
                     </ActionIcon>
                 </Tooltip>
             </ActionIconGroup>
-
-            <Modal
-                centered
-                onClose={close}
-                opened={opened}
-                size="md"
-                title={t('internal-squad-header-action-buttons.feature.create-internal-squad')}
-            >
-                <form
-                    onSubmit={(e) => {
-                        e.preventDefault()
-                        createInternalSquad({
-                            variables: {
-                                name: nameField.getValue(),
-                                inbounds: []
-                            }
-                        })
-                    }}
-                >
-                    <Stack gap="md">
-                        <Text size="sm">
-                            {t(
-                                'internal-squad-header-action-buttons.feature.create-a-new-internal-squad-by-entering-a-name-below'
-                            )}
-                        </Text>
-                        <TextInput
-                            data-autofocus
-                            label={t('internal-squad-header-action-buttons.feature.squad-name')}
-                            placeholder={t(
-                                'internal-squad-header-action-buttons.feature.enter-squad-name'
-                            )}
-                            required
-                            {...nameField.getInputProps()}
-                        />
-                        <Group justify="flex-end">
-                            <Button onClick={close} variant="default">
-                                {t('internal-squad-header-action-buttons.feature.cancel')}
-                            </Button>
-
-                            <Button
-                                disabled={!!nameField.error || nameField.getValue().length === 0}
-                                loading={isPending}
-                                type="submit"
-                            >
-                                {t('internal-squad-header-action-buttons.feature.create')}
-                            </Button>
-                        </Group>
-                    </Stack>
-                </form>
-            </Modal>
         </Group>
     )
 }

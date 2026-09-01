@@ -1,32 +1,57 @@
-import { GetSubscriptionTemplateCommand } from '@remnawave/backend-contract'
 import { createQueryKeys } from '@lukemorales/query-key-factory'
-import { notifications } from '@mantine/notifications'
+import {
+    GetSubscriptionTemplateCommand,
+    GetSubscriptionTemplatesCommand,
+    GetSubscriptionTemplatesTagsCommand
+} from '@remnawave/backend-contract'
 
 import { sToMs } from '@shared/utils/time-utils'
 
-import { createGetQueryHook } from '../../tsq-helpers'
+import { createGetQueryHook, errorHandler } from '../../tsq-helpers'
 
 export const subscriptionTemplateQueryKeys = createQueryKeys('subscriptionTemplate', {
-    getSubscriptionTemplate: (route: GetSubscriptionTemplateCommand.Request) => ({
+    getSubscriptionTemplatesTags: {
+        queryKey: null
+    },
+    getSubscriptionTemplate: (route: GetSubscriptionTemplateCommand.RequestParam) => ({
         queryKey: [route]
-    })
+    }),
+    getSubscriptionTemplates: {
+        queryKey: null
+    }
 })
 
 export const useGetSubscriptionTemplate = createGetQueryHook({
     endpoint: GetSubscriptionTemplateCommand.TSQ_url,
-    routeParamsSchema: GetSubscriptionTemplateCommand.RequestSchema,
+    routeParamsSchema: GetSubscriptionTemplateCommand.RequestParamSchema,
     responseSchema: GetSubscriptionTemplateCommand.ResponseSchema,
     getQueryKey: ({ route }) =>
         subscriptionTemplateQueryKeys.getSubscriptionTemplate(route!).queryKey,
     rQueryParams: {
-        refetchOnMount: true,
-        staleTime: sToMs(5)
+        refetchOnMount: false,
+        staleTime: sToMs(30)
     },
-    errorHandler: (error) => {
-        notifications.show({
-            title: 'Get Subscription Template',
-            message: error instanceof Error ? error.message : `Request failed with unknown error.`,
-            color: 'red'
-        })
-    }
+    errorHandler: (error) => errorHandler(error, 'Get Subscription Template')
+})
+
+export const useGetSubscriptionTemplates = createGetQueryHook({
+    endpoint: GetSubscriptionTemplatesCommand.TSQ_url,
+    responseSchema: GetSubscriptionTemplatesCommand.ResponseSchema,
+    getQueryKey: () => subscriptionTemplateQueryKeys.getSubscriptionTemplates.queryKey,
+    rQueryParams: {
+        refetchOnMount: false,
+        staleTime: sToMs(30)
+    },
+    errorHandler: (error) => errorHandler(error, 'Get Subscription Templates')
+})
+
+export const useGetSubscriptionTemplatesTags = createGetQueryHook({
+    endpoint: GetSubscriptionTemplatesTagsCommand.TSQ_url,
+    responseSchema: GetSubscriptionTemplatesTagsCommand.ResponseSchema,
+    getQueryKey: () => subscriptionTemplateQueryKeys.getSubscriptionTemplatesTags.queryKey,
+    rQueryParams: {
+        refetchOnMount: true,
+        staleTime: sToMs(30)
+    },
+    errorHandler: (error) => errorHandler(error, 'Get SubscriptionTemplates Tags')
 })

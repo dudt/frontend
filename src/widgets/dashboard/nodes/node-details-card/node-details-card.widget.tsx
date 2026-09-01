@@ -1,51 +1,71 @@
+import { GetActiveSessionsOnNodeFeature } from '@features/ui/dashboard/nodes/get-active-sesions-on-node'
+import { GetNodeGeocheckFeature } from '@features/ui/dashboard/nodes/get-node-geocheck'
+import { GetNodeInboundsHostsFeature } from '@features/ui/dashboard/nodes/get-node-inbounds-hosts'
+import { GetNodeLinkedHostsFeature } from '@features/ui/dashboard/nodes/get-node-linked-hosts'
+import { GetNodeUsersUsageFeature } from '@features/ui/dashboard/nodes/get-node-users-usage'
+import { OpenNodeSshFeature } from '@features/ui/dashboard/nodes/open-node-ssh'
 import {
     ActionIcon,
+    Badge,
     Box,
-    Card,
+    Divider,
     Group,
     Loader,
     Paper,
+    Progress,
     SimpleGrid,
-    Stack,
     Text,
-    ThemeIcon,
-    Title,
+    ThemeIconProps,
     Tooltip
 } from '@mantine/core'
-import { PiCloudArrowUpDuotone, PiUsersDuotone, PiWarningCircle } from 'react-icons/pi'
-import { UpdateNodeCommand } from '@remnawave/backend-contract'
-import { TbPower, TbWifi, TbWifiOff } from 'react-icons/tb'
-import { HiOutlineServer } from 'react-icons/hi'
+import { modals } from '@mantine/modals'
+import { GetNodeCommand, UpdateNodeCommand } from '@remnawave/backend-contract'
+import { githubDarkTheme, JsonEditor } from 'json-edit-react'
+import { memo, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { motion } from 'framer-motion'
-import { memo, useMemo } from 'react'
+import {
+    PiArrowsCounterClockwise,
+    PiCloudArrowUpDuotone,
+    PiUsersDuotone,
+    PiWarningCircle
+} from 'react-icons/pi'
+import { TbJson, TbPower, TbWifi, TbWifiOff } from 'react-icons/tb'
 
-import { QueryKeys, useDisableNode, useEnableNode } from '@shared/api/hooks'
-import { XtlsLogo } from '@shared/ui/logos/xtls-logo'
 import { queryClient } from '@shared/api'
+import { QueryKeys, useDisableNode, useEnableNode, useGetNodeMetadata } from '@shared/api/hooks'
 import { Logo } from '@shared/ui'
+import { XrayLogo } from '@shared/ui/logos'
+import { BaseOverlayHeader } from '@shared/ui/overlays/base-overlay-header'
+import { SectionCard } from '@shared/ui/section-card'
+import { prettifyBytesUtil } from '@shared/utils/bytes'
+import { getNodeResetDaysUtil, getXrayUptimeUtil } from '@shared/utils/time-utils'
 
-import { IProps } from './interface'
+interface IProps {
+    node: GetNodeCommand.Response['response']
+}
 
-export const NodeDetailsCardWidget = memo(({ node, fetchedNode }: IProps) => {
+export const NodeDetailsCardWidget = memo((props: IProps) => {
+    const { node } = props
+
     const { t } = useTranslation()
-
-    const nodeData = fetchedNode || node
 
     const mutationParams = {
         route: {
-            uuid: nodeData.uuid
+            uuid: node.uuid
         },
         mutationFns: {
-            onSuccess: async (nodeData: UpdateNodeCommand.Response['response']) => {
+            onSuccess: async (node: UpdateNodeCommand.Response['response']) => {
                 await queryClient.setQueryData(
-                    QueryKeys.nodes.getNode({ uuid: nodeData.uuid }).queryKey,
-                    nodeData
+                    QueryKeys.nodes.getNode({ uuid: node.uuid }).queryKey,
+                    node
                 )
             }
         }
     }
 
+    const { data: metadata, isLoading: isMetadataLoading } = useGetNodeMetadata({
+        route: { uuid: node.uuid }
+    })
     const { mutate: disableNode, isPending: isDisableNodePending } = useDisableNode(mutationParams)
     const { mutate: enableNode, isPending: isEnableNodePending } = useEnableNode(mutationParams)
 
@@ -56,59 +76,70 @@ export const NodeDetailsCardWidget = memo(({ node, fetchedNode }: IProps) => {
         )
     }, [node.configProfile])
 
-    const { icon, color, backgroundColor, borderColor, boxShadow } = useMemo(() => {
-        let icon: React.ReactNode
-        let color = 'red'
-        let backgroundColor = 'rgba(239, 68, 68, 0.15)'
-        let borderColor = 'rgba(239, 68, 68, 0.3)'
-        let boxShadow = 'rgba(239, 68, 68, 0.2)'
+    const { IconComponent, themeIconColor } = useMemo(() => {
+        let IconComponent: React.ComponentType<{ size: number }>
+        let themeIconColor: ThemeIconProps['color'] = 'red'
 
         if (isConfigMissing) {
-            icon = <PiWarningCircle size={18} style={{ color: 'var(--mantine-color-red-6)' }} />
-            color = 'red'
-            backgroundColor = 'rgba(239, 68, 68, 0.15)'
-            borderColor = 'rgba(239, 68, 68, 0.3)'
-            boxShadow = 'rgba(239, 68, 68, 0.2)'
-
-            return { icon, color, backgroundColor, borderColor, boxShadow }
+            IconComponent = PiWarningCircle
+            themeIconColor = 'red'
+            return { IconComponent, themeIconColor }
         }
 
-        if (nodeData.isConnected) {
-            icon = <TbWifi size={18} style={{ color: 'var(--mantine-color-teal-6)' }} />
-            color = 'teal'
-            backgroundColor = 'rgba(45, 212, 191, 0.15)'
-            borderColor = 'rgba(45, 212, 191, 0.3)'
-            boxShadow = 'rgba(45, 212, 191, 0.2)'
-        } else if (nodeData.isConnecting) {
-            icon = (
-                <PiCloudArrowUpDuotone
-                    size={18}
-                    style={{ color: 'var(--mantine-color-yellow-3)' }}
-                />
-            )
-            color = 'yellow'
-            backgroundColor = 'rgba(245, 158, 11, 0.15)'
-            borderColor = 'rgba(245, 158, 11, 0.3)'
-            boxShadow = 'rgba(245, 158, 11, 0.2)'
-        } else if (nodeData.isDisabled) {
-            icon = <TbWifiOff size={18} style={{ color: 'var(--mantine-color-gray-6)' }} />
-            color = 'gray'
-            backgroundColor = 'rgba(107, 114, 128, 0.15)'
-            borderColor = 'rgba(107, 114, 128, 0.3)'
-            boxShadow = 'rgba(107, 114, 128, 0.2)'
+        if (node.isDisabled) {
+            IconComponent = TbWifiOff
+            themeIconColor = 'gray'
+            return { IconComponent, themeIconColor }
+        }
+
+        if (node.isConnected) {
+            IconComponent = TbWifi
+            themeIconColor = 'teal'
+        } else if (node.isConnecting) {
+            IconComponent = PiCloudArrowUpDuotone
+            themeIconColor = 'yellow'
         } else {
-            icon = <PiWarningCircle size={18} style={{ color: 'var(--mantine-color-red-6)' }} />
-            color = 'red'
-            backgroundColor = 'rgba(239, 68, 68, 0.15)'
-            borderColor = 'rgba(239, 68, 68, 0.3)'
-            boxShadow = 'rgba(239, 68, 68, 0.2)'
+            IconComponent = PiWarningCircle
+            themeIconColor = 'red'
         }
 
-        return { icon, color, backgroundColor, borderColor, boxShadow }
-    }, [nodeData.isConnected, nodeData.isConnecting, nodeData.isDisabled, t])
+        return { IconComponent, themeIconColor }
+    }, [node.isConnected, node.isConnecting, node.isDisabled, isConfigMissing])
+
+    const trafficData = useMemo(() => {
+        let maxData = '∞'
+        let percentage = 0
+
+        const prettyUsedData = prettifyBytesUtil(node.trafficUsedBytes || 0) || '0 B'
+
+        if (node.isTrafficTrackingActive) {
+            maxData = prettifyBytesUtil(node.trafficLimitBytes || 0) || '∞'
+            if (node.trafficLimitBytes === 0) {
+                percentage = 100
+            } else {
+                percentage = Math.floor(
+                    ((node.trafficUsedBytes ?? 0) * 100) / (node.trafficLimitBytes ?? 0)
+                )
+            }
+        }
+
+        return {
+            maxData,
+            percentage,
+            prettyUsedData,
+            isUnlimited: !node.isTrafficTrackingActive || node.trafficLimitBytes === 0
+        }
+    }, [node.trafficUsedBytes, node.trafficLimitBytes, node.isTrafficTrackingActive])
+
+    const getProgressColor = useCallback(() => {
+        if (trafficData.isUnlimited) return 'teal'
+        if (trafficData.percentage > 95) return 'red'
+        if (trafficData.percentage > 80) return 'yellow.4'
+        return 'teal'
+    }, [trafficData.percentage, trafficData.isUnlimited])
 
     const handleToggleNodeStatus = () => {
-        if (nodeData.isDisabled) {
+        if (node.isDisabled) {
             enableNode({})
         } else {
             disableNode({})
@@ -116,77 +147,59 @@ export const NodeDetailsCardWidget = memo(({ node, fetchedNode }: IProps) => {
     }
 
     return (
-        <Card
-            p="lg"
-            radius="lg"
-            style={{
-                background: `
-                    linear-gradient(135deg, 
-                        rgba(15, 23, 42, 0.98) 0%,
-                        rgba(30, 41, 59, 0.98) 50%,
-                        rgba(15, 23, 42, 0.98) 100%
-                    )
-                `,
-                border: '1px solid rgba(148, 163, 184, 0.1)',
-                position: 'relative',
-                overflow: 'hidden'
-            }}
-        >
-            <Box
-                style={{
-                    position: 'absolute',
-                    top: -20,
-                    right: -20,
-                    width: 100,
-                    height: 100,
-                    background: `radial-gradient(circle, ${backgroundColor} 0%, transparent 70%)`,
-                    borderRadius: '50%'
-                }}
-            />
-
-            <Stack gap="md" style={{ position: 'relative', zIndex: 1 }}>
-                <Group align="flex-start" justify="space-between">
-                    <Group gap="xs" mt={5}>
-                        <ThemeIcon
-                            gradient={{ from: 'violet.4', to: 'purple.6', deg: 45 }}
-                            size="sm"
-                            style={{ borderRadius: '8px' }}
-                            variant="gradient"
-                        >
-                            <HiOutlineServer size={14} />
-                        </ThemeIcon>
-                        <Box>
-                            <Title c="white" fw={600} order={5}>
-                                {t('node-details-card.widget.node-details')}
-                            </Title>
-                        </Box>
-                    </Group>
+        <SectionCard.Root>
+            <SectionCard.Section>
+                <Group align="flex-center" justify="space-between">
+                    <BaseOverlayHeader
+                        iconColor={themeIconColor}
+                        IconComponent={IconComponent}
+                        iconSize={20}
+                        iconVariant="soft"
+                        title={t('node-details-card.widget.node-details')}
+                        titleOrder={5}
+                    />
 
                     <Group gap="xs">
+                        {node.isConnected && (
+                            <Tooltip
+                                label={t('node-stats.card.represents-the-uptime-of-the-xray-core')}
+                            >
+                                <Badge
+                                    color="teal"
+                                    h={28}
+                                    leftSection={<XrayLogo size={14} />}
+                                    size="lg"
+                                    variant="light"
+                                    visibleFrom="sm"
+                                >
+                                    {getXrayUptimeUtil(node.xrayUptime)}
+                                </Badge>
+                            </Tooltip>
+                        )}
                         {!isConfigMissing && (
                             <Tooltip
                                 label={
-                                    nodeData.isDisabled
+                                    node.isDisabled
                                         ? t('node-details-card.widget.enable-node')
                                         : t('node-details-card.widget.disable-node')
                                 }
                             >
                                 <ActionIcon
-                                    color={nodeData.isDisabled ? 'teal' : 'red'}
+                                    color={node.isDisabled ? 'teal' : 'red'}
                                     disabled={isDisableNodePending || isEnableNodePending}
                                     onClick={handleToggleNodeStatus}
                                     size="md"
                                     style={{
-                                        backgroundColor: nodeData.isDisabled
+                                        backgroundColor: node.isDisabled
                                             ? 'rgba(45, 212, 191, 0.15)'
                                             : 'rgba(239, 68, 68, 0.15)',
                                         border: `1px solid ${
-                                            nodeData.isDisabled
+                                            node.isDisabled
                                                 ? 'rgba(45, 212, 191, 0.3)'
                                                 : 'rgba(239, 68, 68, 0.3)'
                                         }`,
                                         boxShadow: `0 0 10px ${
-                                            nodeData.isDisabled
+                                            node.isDisabled
                                                 ? 'rgba(45, 212, 191, 0.2)'
                                                 : 'rgba(239, 68, 68, 0.2)'
                                         }`
@@ -195,14 +208,14 @@ export const NodeDetailsCardWidget = memo(({ node, fetchedNode }: IProps) => {
                                 >
                                     {isDisableNodePending || isEnableNodePending ? (
                                         <Loader
-                                            color={nodeData.isDisabled ? 'teal' : 'red'}
+                                            color={node.isDisabled ? 'teal' : 'red'}
                                             size="xs"
                                         />
                                     ) : (
                                         <TbPower
                                             size={16}
                                             style={{
-                                                color: nodeData.isDisabled
+                                                color: node.isDisabled
                                                     ? 'var(--mantine-color-teal-4)'
                                                     : 'var(--mantine-color-red-4)'
                                             }}
@@ -239,119 +252,224 @@ export const NodeDetailsCardWidget = memo(({ node, fetchedNode }: IProps) => {
                                 </ActionIcon>
                             </Tooltip>
                         )}
-
-                        <motion.div
-                            animate={{
-                                scale: nodeData?.isConnected ? [1, 1.1, 1] : 1,
-                                opacity: nodeData?.isConnected ? [1, 0.8, 1] : 0.6
-                            }}
-                            transition={{
-                                duration: nodeData?.isConnected ? 2 : 0,
-                                repeat: nodeData?.isConnected ? Infinity : 0
-                            }}
-                        >
-                            <ThemeIcon
-                                color={color}
-                                size="lg"
-                                style={{
-                                    backgroundColor,
-                                    border: `1px solid ${borderColor}`,
-                                    boxShadow: `0 0 15px ${boxShadow}`
-                                }}
-                                variant="light"
-                            >
-                                {icon}
-                            </ThemeIcon>
-                        </motion.div>
                     </Group>
                 </Group>
+            </SectionCard.Section>
 
-                {nodeData.isConnected && (
+            <SectionCard.Section>
+                <Group gap="xs" justify="flex-end">
+                    <Group gap="xs" justify="center">
+                        <Tooltip label="Metadata">
+                            <ActionIcon
+                                color="teal"
+                                disabled={!metadata}
+                                loading={isMetadataLoading}
+                                onClick={() => {
+                                    if (!metadata) return
+                                    modals.open({
+                                        centered: true,
+                                        size: 'auto',
+                                        title: (
+                                            <BaseOverlayHeader
+                                                iconColor="teal"
+                                                IconComponent={TbJson}
+                                                iconVariant="soft"
+                                                title="Metadata"
+                                            />
+                                        ),
+                                        children: (
+                                            <Box>
+                                                <JsonEditor
+                                                    collapse={3}
+                                                    data={metadata.metadata as object}
+                                                    indent={4}
+                                                    maxWidth="100%"
+                                                    rootName=""
+                                                    theme={githubDarkTheme}
+                                                    viewOnly
+                                                />
+                                            </Box>
+                                        )
+                                    })
+                                }}
+                                size="lg"
+                                variant="soft"
+                            >
+                                <TbJson size={22} />
+                            </ActionIcon>
+                        </Tooltip>
+                    </Group>
+
+                    <Divider opacity={0.3} orientation="vertical" />
+
+                    <Group gap="xs" justify="center">
+                        <GetNodeLinkedHostsFeature nodeUuid={node.uuid} />
+                        <GetNodeInboundsHostsFeature nodeUuid={node.uuid} />
+                    </Group>
+
+                    <Divider opacity={0.3} orientation="vertical" />
+
+                    <Group gap="xs" justify="center">
+                        <GetNodeGeocheckFeature node={node} />
+                        <OpenNodeSshFeature node={node} />
+                        <GetNodeUsersUsageFeature nodeUuid={node.uuid} />
+                        <GetActiveSessionsOnNodeFeature nodeUuid={node.uuid} />
+                    </Group>
+                </Group>
+            </SectionCard.Section>
+
+            <SectionCard.Section>
+                <Box>
+                    <Group gap="xs" justify="space-between" mb={6}>
+                        <Group gap={6}>
+                            <Text c="gray.3" ff="monospace" fw={600} size="sm">
+                                {trafficData.prettyUsedData}
+                            </Text>
+                        </Group>
+                        <Text c="dimmed" size="xs">
+                            {trafficData.maxData}
+                        </Text>
+                    </Group>
+
+                    <Progress
+                        color={getProgressColor()}
+                        radius="sm"
+                        size="sm"
+                        value={trafficData.isUnlimited ? 100 : trafficData.percentage}
+                    />
+
+                    {node.isTrafficTrackingActive && node.trafficResetDay && (
+                        <Group gap={4} justify="center" mt={6}>
+                            <PiArrowsCounterClockwise
+                                color="var(--mantine-color-dimmed)"
+                                size={12}
+                            />
+                            <Text c="dimmed" size="xs">
+                                {t('node-stats.card.traffic-refill-in-days')}{' '}
+                                {getNodeResetDaysUtil(node.trafficResetDay)}
+                            </Text>
+                        </Group>
+                    )}
+                </Box>
+            </SectionCard.Section>
+            {node.isConnected && (
+                <SectionCard.Section>
                     <SimpleGrid
                         cols={{
                             base: 1,
-                            sm: 2,
-                            md: 3
+                            xs: 2,
+                            sm: 3
                         }}
+                        spacing="xs"
                     >
                         <Paper
                             p="xs"
                             radius="md"
                             style={{
                                 background:
-                                    nodeData.usersOnline! > 0
-                                        ? 'rgba(45, 212, 191, 0.1)'
-                                        : 'rgba(107, 114, 128, 0.1)',
+                                    node.usersOnline! > 0
+                                        ? 'rgba(45, 212, 191, 0.08)'
+                                        : 'rgba(107, 114, 128, 0.08)',
                                 border: `1px solid ${
-                                    nodeData.usersOnline! > 0
-                                        ? 'rgba(45, 212, 191, 0.3)'
-                                        : 'rgba(107, 114, 128, 0.3)'
+                                    node.usersOnline! > 0
+                                        ? 'rgba(45, 212, 191, 0.2)'
+                                        : 'rgba(107, 114, 128, 0.2)'
                                 }`
                             }}
                         >
                             <Group gap="xs" justify="center">
                                 <PiUsersDuotone
                                     color={
-                                        nodeData.usersOnline! > 0
-                                            ? 'var(--mantine-color-teal-4)'
-                                            : 'var(--mantine-color-gray-5)'
+                                        node.usersOnline! > 0
+                                            ? 'var(--mantine-color-teal-5)'
+                                            : 'var(--mantine-color-gray-6)'
                                     }
-                                    size={18}
+                                    size={16}
                                 />
                                 <Text
-                                    c={nodeData.usersOnline! > 0 ? 'teal.4' : 'gray.5'}
+                                    c={node.usersOnline! > 0 ? 'teal.5' : 'gray.6'}
                                     fw={600}
                                     size="sm"
                                 >
-                                    {nodeData.usersOnline}
+                                    {node.usersOnline}
                                 </Text>
                             </Group>
                         </Paper>
 
-                        {nodeData.xrayVersion && (
+                        {node.versions && (
                             <Paper
                                 p="xs"
                                 radius="md"
                                 style={{
-                                    background: 'rgba(139, 92, 246, 0.1)',
-                                    border: '1px solid rgba(139, 92, 246, 0.3)'
+                                    background: 'rgba(139, 92, 246, 0.08)',
+                                    border: '1px solid rgba(139, 92, 246, 0.2)'
                                 }}
                             >
                                 <Tooltip label={t('node-details-card.widget.xray-core-version')}>
                                     <Group gap="xs" justify="center">
-                                        <XtlsLogo color="var(--mantine-color-violet-4)" size={18} />
-                                        <Text c="violet.4" fw={600} size="sm">
-                                            {nodeData.xrayVersion || 'N/A'}
+                                        <XrayLogo color="var(--mantine-color-violet-5)" size={16} />
+                                        <Text c="violet.5" fw={600} size="sm">
+                                            {node.versions.xray}
                                         </Text>
                                     </Group>
                                 </Tooltip>
                             </Paper>
                         )}
 
-                        {nodeData.nodeVersion && (
+                        {node.xrayUptime !== 0 && (
+                            <Paper
+                                hiddenFrom="sm"
+                                p="xs"
+                                radius="md"
+                                style={{
+                                    background: 'rgba(20, 184, 166, 0.08)', // teal-500 at 8%
+                                    border: '1px solid rgba(20, 184, 166, 0.2)' // teal-500 at 20%
+                                }}
+                            >
+                                <Tooltip
+                                    label={t(
+                                        'node-stats.card.represents-the-uptime-of-the-xray-core'
+                                    )}
+                                >
+                                    <Group gap="xs" justify="center">
+                                        <XrayLogo color="var(--mantine-color-teal-5)" size={16} />
+                                        <Text
+                                            c="teal.5"
+                                            fw={600}
+                                            size="sm"
+                                            style={{ textTransform: 'uppercase' }}
+                                        >
+                                            {getXrayUptimeUtil(node.xrayUptime)}
+                                        </Text>
+                                    </Group>
+                                </Tooltip>
+                            </Paper>
+                        )}
+
+                        {node.versions && (
                             <Paper
                                 p="xs"
                                 radius="md"
                                 style={{
-                                    background: 'rgba(99, 102, 241, 0.1)',
-                                    border: '1px solid rgba(99, 102, 241, 0.3)'
+                                    background: 'rgba(99, 102, 241, 0.08)',
+                                    border: '1px solid rgba(99, 102, 241, 0.2)'
                                 }}
                             >
                                 <Tooltip
                                     label={t('node-details-card.widget.remnawave-node-version')}
                                 >
                                     <Group gap="xs" justify="center">
-                                        <Logo color="var(--mantine-color-indigo-4)" size={18} />
-                                        <Text c="indigo.4" fw={600} size="sm">
-                                            {nodeData.nodeVersion || 'N/A'}
+                                        <Logo color="var(--mantine-color-indigo-5)" size={16} />
+                                        <Text c="indigo.5" fw={600} size="sm">
+                                            {node.versions.node}
                                         </Text>
                                     </Group>
                                 </Tooltip>
                             </Paper>
                         )}
                     </SimpleGrid>
-                )}
-            </Stack>
-        </Card>
+                </SectionCard.Section>
+            )}
+        </SectionCard.Root>
     )
 })

@@ -1,3 +1,5 @@
+import { GetStatsCommand } from '@remnawave/backend-contract'
+import { TFunction } from 'i18next'
 import {
     PiClockCountdownDuotone,
     PiClockUserDuotone,
@@ -5,45 +7,49 @@ import {
     PiPulseDuotone,
     PiUsersDuotone
 } from 'react-icons/pi'
-import { GetStatsCommand } from '@remnawave/backend-contract'
-import { TFunction } from 'i18next'
 
+import { IMetricCardProps } from '@shared/ui/metrics/metric-card'
 import { formatInt } from '@shared/utils/misc'
 
 export const getUsersMetrics = (
     users: GetStatsCommand.Response['response']['users'],
     t: TFunction
-) => {
+): IMetricCardProps[] => {
     return [
         {
             value: formatInt(users.totalUsers) ?? 0,
-            icon: PiUsersDuotone,
-            title: t('users-metrics.widget.total'),
-            color: 'var(--mantine-color-blue-4)'
+            IconComponent: PiUsersDuotone,
+            title: t('common.field.total'),
+            iconVariant: 'soft',
+            iconColor: 'blue'
         },
         {
             value: formatInt(users.statusCounts.ACTIVE) ?? 0,
             title: 'Active',
-            icon: PiPulseDuotone,
-            color: 'var(--mantine-color-teal-4)'
+            IconComponent: PiPulseDuotone,
+            iconVariant: 'soft',
+            iconColor: 'teal'
         },
         {
             value: formatInt(users.statusCounts.EXPIRED) ?? 0,
-            icon: PiClockUserDuotone,
+            IconComponent: PiClockUserDuotone,
             title: 'Expired',
-            color: 'var(--mantine-color-red-4)'
+            iconVariant: 'soft',
+            iconColor: 'red'
         },
         {
             value: formatInt(users.statusCounts.LIMITED) ?? 0,
-            icon: PiClockCountdownDuotone,
+            IconComponent: PiClockCountdownDuotone,
             title: 'Limited',
-            color: 'var(--mantine-color-orange-4)'
+            iconVariant: 'soft',
+            iconColor: 'orange'
         },
         {
             value: formatInt(users.statusCounts.DISABLED) ?? 0,
-            icon: PiProhibitDuotone,
+            IconComponent: PiProhibitDuotone,
             title: 'Disabled',
-            color: 'var(--mantine-color-gray-4)'
+            iconVariant: 'soft',
+            iconColor: 'gray'
         }
     ]
 }

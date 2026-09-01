@@ -1,56 +1,99 @@
-import { Box, Card, Code, Paper, Text } from '@mantine/core'
-import Editor, { Monaco } from '@monaco-editor/react'
-import { useEffect, useRef, useState } from 'react'
-import { useTranslation } from 'react-i18next'
-import { useBlocker } from 'react-router-dom'
-import { modals } from '@mantine/modals'
+import type { editor } from 'monaco-editor'
 
 import { ConfigEditorActionsFeature } from '@features/dashboard/config-profiles/config-editor-actions'
 import { ConfigValidationFeature } from '@features/dashboard/config-profiles/config-validation'
 import { MonacoSetupFeature } from '@features/dashboard/config-profiles/monaco-setup'
-import { monacoTheme } from '@shared/constants/monaco-theme/monaco-theme'
+import { Box, Button, Code, Group, Loader, Paper } from '@mantine/core'
+import { modals } from '@mantine/modals'
+import { useMonaco } from '@monaco-editor/react'
+import clsx from 'clsx'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { TbAlertTriangle } from 'react-icons/tb'
+import { useBlocker } from 'react-router'
+
+import { usePseudoFullscreen, useViewportFillHeight } from '@shared/hooks'
+import { CodeEditor, editorClasses, EditorFooter, EditorStatusBar } from '@shared/ui/code-editor'
+import { FullscreenToggleButton, fullscreenClasses } from '@shared/ui/fullscreen-toggle-button'
+import { LoaderModalShared } from '@shared/ui/loader-modal'
+import { BaseOverlayHeader } from '@shared/ui/overlays/base-overlay-header'
+import { preventBackScroll } from '@shared/utils/misc'
 
 import styles from './ConfigEditor.module.css'
 import { IProps } from './interfaces'
 
 export function ConfigEditorWidget(props: IProps) {
     const { t, i18n } = useTranslation()
+    const monaco = useMonaco()
 
-    const { configProfile } = props
+    const { configProfile, isWasmCrashed, isWasmRestarting, onRestartWasm, snippets } = props
+
     const [result, setResult] = useState('')
-    const [isConfigValid, setIsConfigValid] = useState(false)
+    const [isConfigValid, setIsConfigValid] = useState(true)
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
-    const [originalValue, setOriginalValue] = useState('')
+    const [originalValue, setOriginalValue] = useState<string>(
+        JSON.stringify(configProfile.config, null, 2) || ''
+    )
 
-    const editorRef = useRef<unknown>(null)
-    const monacoRef = useRef<unknown>(null)
+    const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null)
+    const wasWasmRestarting = useRef(false)
+
+    const { isFullscreen, toggle: toggleFullscreen } = usePseudoFullscreen()
+    const { containerRef: editorWrapperRef, footerRef } = useViewportFillHeight({
+        enabled: !isFullscreen
+    })
 
     useEffect(() => {
-        const initialValue = JSON.stringify(configProfile.config, null, 2)
-        setOriginalValue(initialValue)
-        setHasUnsavedChanges(false)
-    }, [configProfile.config])
+        if (!monaco) return
 
-    useEffect(() => {
-        if (!monacoRef.current) return
-        MonacoSetupFeature.setup(monacoRef.current as Monaco, i18n.language)
-    }, [monacoRef.current, i18n.language])
+        MonacoSetupFeature.setup(i18n.language, snippets.snippets)
+    }, [i18n.language, snippets, monaco])
 
     const blocker = useBlocker(
         ({ currentLocation, nextLocation }) =>
             hasUnsavedChanges && currentLocation.pathname !== nextLocation.pathname
     )
 
+    const snippetMap = new Map(snippets.snippets.map((s) => [s.name, s.snippet]))
+
+    useEffect(() => {
+        if (wasWasmRestarting.current && !isWasmRestarting && !isWasmCrashed && editorRef.current) {
+            ConfigValidationFeature.validate(editorRef, setResult, setIsConfigValid, snippetMap)
+        }
+        wasWasmRestarting.current = isWasmRestarting
+    }, [isWasmRestarting, isWasmCrashed])
+
+    const checkForChanges = () => {
+        if (!editorRef.current) return
+
+        const currentValue = editorRef.current.getValue()
+        const hasChanges = currentValue !== originalValue
+        setHasUnsavedChanges(hasChanges)
+    }
+
+    useLayoutEffect(() => {
+        document.body.addEventListener('wheel', preventBackScroll, {
+            passive: false
+        })
+        return () => {
+            document.body.removeEventListener('wheel', preventBackScroll)
+        }
+    }, [])
+
     useEffect(() => {
         if (blocker.state === 'blocked') {
             modals.openConfirmModal({
-                title: t('config-editor.widget.unsaved-changes'),
-                children: (
-                    <Text c="dimmed" size="md">
-                        {t(
-                            'config-editor.widget.your-changes-will-be-lost-if-you-leave-this-page-without-saving'
-                        )}
-                    </Text>
+                title: (
+                    <BaseOverlayHeader
+                        iconColor="red"
+                        IconComponent={TbAlertTriangle}
+                        iconSize={20}
+                        iconVariant="soft"
+                        title={t('config-editor.widget.unsaved-changes')}
+                    />
+                ),
+                children: t(
+                    'config-editor.widget.your-changes-will-be-lost-if-you-leave-this-page-without-saving'
                 ),
                 centered: true,
                 labels: {
@@ -60,7 +103,7 @@ export function ConfigEditorWidget(props: IProps) {
 
                 confirmProps: {
                     color: 'red',
-                    variant: 'light'
+                    variant: 'soft'
                 },
                 cancelProps: {
                     variant: 'light'
@@ -77,138 +120,114 @@ export function ConfigEditorWidget(props: IProps) {
         }
     }, [blocker])
 
-    const handleEditorDidMount = (monaco: Monaco) => {
-        monaco.editor.defineTheme('GithubDark', {
-            ...monacoTheme,
-            base: 'vs-dark'
-        })
-    }
-
-    const checkForChanges = () => {
-        if (!editorRef.current) return
-        if (typeof editorRef.current !== 'object') return
-        if (!('getValue' in editorRef.current)) return
-        if (typeof editorRef.current.getValue !== 'function') return
-
-        const currentValue = editorRef.current.getValue()
-        const hasChanges = currentValue !== originalValue
-        setHasUnsavedChanges(hasChanges)
-    }
+    const statusBar = (result || isWasmRestarting || isWasmCrashed) && (
+        <EditorStatusBar
+            status={isWasmCrashed || isWasmRestarting || !isConfigValid ? 'error' : 'success'}
+        >
+            {isWasmRestarting && (
+                <Group gap="xs">
+                    <Loader color="orange" size="xs" />
+                    <Code className={styles.statusCode} color="orange">
+                        Xray Core (WASM) is restarting...
+                    </Code>
+                </Group>
+            )}
+            {!isWasmRestarting && isWasmCrashed && (
+                <Group gap="sm">
+                    <Code className={styles.statusCode} color="red">
+                        Xray Core (WASM) crashed. Validation is unavailable.
+                    </Code>
+                    <Button color="red" onClick={onRestartWasm} size="compact-xs" variant="light">
+                        {t('restart-node-button.feature.restart')}
+                    </Button>
+                </Group>
+            )}
+            {!isWasmRestarting && !isWasmCrashed && result}
+        </EditorStatusBar>
+    )
 
     return (
-        <Box>
-            {result && (
-                <Paper
-                    mb="md"
-                    p="md"
-                    radius="sm"
-                    style={{
-                        backgroundColor: isConfigValid
-                            ? 'rgba(51, 171, 132, 0.1)'
-                            : 'rgba(241, 65, 65, 0.1)',
-                        border: `1px solid ${isConfigValid ? 'rgb(51, 171, 132)' : 'rgb(241, 65, 65)'}`
-                    }}
-                >
-                    <Code
-                        block
-                        color={isConfigValid ? 'teal' : 'red'}
-                        style={{
-                            backgroundColor: 'transparent',
-                            fontSize: '0.9rem',
-                            padding: 0
-                        }}
-                    >
-                        {result}
-                    </Code>
-                </Paper>
-            )}
-
+        <Box className={clsx(styles.container, isFullscreen && fullscreenClasses.overlay)}>
             <Paper
-                mb="md"
+                className={clsx(
+                    styles.editorWrapper,
+                    !isFullscreen && editorClasses.editorAttached,
+                    isFullscreen && fullscreenClasses.fill
+                )}
                 p={0}
-                radius="xs"
+                pos="relative"
+                ref={editorWrapperRef}
                 style={{
-                    resize: 'vertical',
-                    overflow: 'hidden',
-                    height: '700px',
                     direction: 'ltr'
                 }}
                 withBorder
             >
-                <Editor
-                    beforeMount={handleEditorDidMount}
+                {isFullscreen && (
+                    <FullscreenToggleButton
+                        isFullscreen={isFullscreen}
+                        onToggle={toggleFullscreen}
+                    />
+                )}
+
+                <CodeEditor
+                    footer={statusBar}
                     className={styles.monacoEditor}
                     defaultLanguage="json"
-                    loading={t('config-editor.widget.loading-editor')}
+                    loading={<LoaderModalShared mih="100%" />}
                     onChange={() => {
-                        ConfigValidationFeature.validate(
-                            editorRef,
-                            monacoRef,
-                            setResult,
-                            setIsConfigValid
-                        )
+                        if (!isWasmCrashed && !isWasmRestarting) {
+                            ConfigValidationFeature.validate(
+                                editorRef,
+                                setResult,
+                                setIsConfigValid,
+                                snippetMap
+                            )
+                        }
+
                         checkForChanges()
                     }}
-                    onMount={(editor, monaco) => {
+                    onMount={(editor) => {
                         editorRef.current = editor
-                        monacoRef.current = monaco
+
+                        editor.getAction('editor.foldLevel7')?.run()
+
                         ConfigValidationFeature.validate(
                             editorRef,
-                            monacoRef,
                             setResult,
-                            setIsConfigValid
+                            setIsConfigValid,
+                            snippetMap
                         )
                     }}
                     options={{
-                        autoClosingBrackets: 'always',
-                        autoClosingQuotes: 'always',
-                        autoIndent: 'full',
-                        automaticLayout: true,
-                        bracketPairColorization: {
-                            enabled: true,
-                            independentColorPoolPerBracketType: true
-                        },
-                        scrollbar: {
-                            alwaysConsumeMouseWheel: false
-                        },
-                        detectIndentation: true,
-                        folding: true,
-                        foldingStrategy: 'indentation',
-                        fontSize: 14,
-                        formatOnPaste: true,
-                        formatOnType: true,
-                        guides: {
-                            bracketPairs: true,
-                            indentation: true
-                        },
-                        insertSpaces: true,
-                        lineNumbersMinChars: 1,
-                        minimap: { enabled: true },
-                        quickSuggestions: true,
-                        renderLineHighlight: 'all',
-                        scrollBeyondLastLine: false,
-                        smoothScrolling: true,
-                        tabSize: 2
+                        stickyScroll: { enabled: false }
                     }}
-                    theme={'GithubDark'}
+                    path="xray-config://*"
                     value={JSON.stringify(configProfile.config, null, 2)}
                 />
             </Paper>
 
-            <Card className={styles.footer} h="auto" m="0" mt="md" pos="sticky">
-                <ConfigEditorActionsFeature
-                    configProfile={configProfile}
-                    editorRef={editorRef}
-                    hasUnsavedChanges={hasUnsavedChanges}
-                    isConfigValid={isConfigValid}
-                    monacoRef={monacoRef}
-                    originalValue={originalValue}
-                    setHasUnsavedChanges={setHasUnsavedChanges}
-                    setIsConfigValid={setIsConfigValid}
-                    setOriginalValue={setOriginalValue}
-                    setResult={setResult}
-                />
-            </Card>
+            {!isFullscreen && (
+                <EditorFooter ref={footerRef}>
+                    <FullscreenToggleButton
+                        floating={false}
+                        isFullscreen={isFullscreen}
+                        onToggle={toggleFullscreen}
+                        size={36}
+                    />
+
+                    <ConfigEditorActionsFeature
+                        configProfile={configProfile}
+                        editorRef={editorRef}
+                        hasUnsavedChanges={hasUnsavedChanges}
+                        isConfigValid={isConfigValid}
+                        originalValue={originalValue}
+                        setHasUnsavedChanges={setHasUnsavedChanges}
+                        setIsConfigValid={setIsConfigValid}
+                        setOriginalValue={setOriginalValue}
+                        setResult={setResult}
+                    />
+                </EditorFooter>
+            )}
         </Box>
     )
 }

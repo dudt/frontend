@@ -4,10 +4,8 @@ import {
     Box,
     Card,
     Center,
-    Divider,
     Grid,
     Group,
-    Paper,
     px,
     SimpleGrid,
     Stack,
@@ -15,6 +13,9 @@ import {
     ThemeIcon,
     Tooltip
 } from '@mantine/core'
+import { GetNodesMetricsCommand } from '@remnawave/backend-contract'
+import { memo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
     PiArrowDownDuotone,
     PiArrowUpDuotone,
@@ -24,14 +25,10 @@ import {
     PiTag,
     PiUsersDuotone
 } from 'react-icons/pi'
-import { GetNodesMetricsCommand } from '@remnawave/backend-contract'
-import { useTranslation } from 'react-i18next'
 import { TbServer2 } from 'react-icons/tb'
-import { memo, useState } from 'react'
 
+import { SectionCard } from '@shared/ui/section-card'
 import { formatInt } from '@shared/utils/misc'
-
-import styles from './NodesMetrics.module.css'
 
 export const NodeDetailsCard = memo(
     ({
@@ -53,10 +50,8 @@ export const NodeDetailsCard = memo(
         const filteredOutboundStats = filterNonZeroStats(node.outboundsStats)
 
         return (
-            <Paper className={styles.NodeDetailCardPaper} p="lg" radius="lg">
-                <Box className={styles.NodeDetailCardBox} />
-
-                <Stack gap="md" style={{ position: 'relative', zIndex: 1 }}>
+            <SectionCard.Root>
+                <SectionCard.Section>
                     <Group align="center" justify="space-between" style={{ minWidth: 0 }}>
                         <Group
                             gap="md"
@@ -72,14 +67,9 @@ export const NodeDetailsCard = memo(
                                 }}
                                 size="xl"
                                 style={{
-                                    background: 'rgba(99, 102, 241, 0.15)',
-                                    border: '1px solid rgba(99, 102, 241, 0.3)',
-                                    cursor: 'pointer',
-                                    boxShadow: '0 0 0 4px rgba(99, 102, 241, 0.1)',
-                                    transform: 'translateY(-1px)',
-                                    flexShrink: 0
+                                    cursor: 'pointer'
                                 }}
-                                variant="light"
+                                variant="soft"
                             >
                                 <TbServer2
                                     size="24px"
@@ -144,7 +134,6 @@ export const NodeDetailsCard = memo(
                                 <ActionIcon
                                     color="indigo"
                                     onClick={() => setHideZeroValues(!hideZeroValues)}
-                                    radius="md"
                                     size="md"
                                     variant="light"
                                 >
@@ -167,15 +156,16 @@ export const NodeDetailsCard = memo(
                             </Badge>
                         </Group>
                     </Group>
-
-                    <Divider color="gray.8" />
-
+                </SectionCard.Section>
+                <SectionCard.Section>
                     <Grid align="flex-start" justify="flex-start">
                         <Grid.Col span={{ base: 12, lg: 6 }}>
                             <Card
                                 p="md"
-                                radius="md"
-                                style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)' }}
+                                style={{
+                                    background: 'rgba(16, 185, 129, 0.05)',
+                                    border: '1px solid rgba(16, 185, 129, 0.15)'
+                                }}
                             >
                                 <Group align="center" gap="xs" mb="xs" wrap="nowrap">
                                     <PiArrowDownDuotone
@@ -277,8 +267,10 @@ export const NodeDetailsCard = memo(
                         <Grid.Col span={{ base: 12, lg: 6 }}>
                             <Card
                                 p="md"
-                                radius="md"
-                                style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)' }}
+                                style={{
+                                    background: 'rgba(59, 130, 246, 0.05)',
+                                    border: '1px solid rgba(59, 130, 246, 0.15)'
+                                }}
                             >
                                 <Group align="center" gap="xs" mb="xs" wrap="nowrap">
                                     <PiArrowUpDuotone
@@ -377,8 +369,8 @@ export const NodeDetailsCard = memo(
                             </Card>
                         </Grid.Col>
                     </Grid>
-                </Stack>
-            </Paper>
+                </SectionCard.Section>
+            </SectionCard.Root>
         )
     }
 )

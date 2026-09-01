@@ -1,7 +1,7 @@
-import { useTranslation } from 'react-i18next'
 import { Stack, Text } from '@mantine/core'
-
 import { UserStatusBadge } from '@widgets/dashboard/users/user-status-badge'
+import { useTranslation } from 'react-i18next'
+
 import { getExpirationTextUtil } from '@shared/utils/time-utils'
 
 import { IProps } from './interface'
@@ -14,7 +14,7 @@ export function StatusColumnEntity(props: IProps) {
     const expirationText = getExpirationTextUtil(user.expireAt, t, i18n)
 
     if (need === 'badge') {
-        return <UserStatusBadge miw={'13ch'} status={user.status} />
+        return <UserStatusBadge miw="13ch" status={user.status} />
     }
 
     if (need === 'date') {

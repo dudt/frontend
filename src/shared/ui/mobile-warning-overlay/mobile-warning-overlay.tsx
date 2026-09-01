@@ -10,38 +10,28 @@ import {
     ThemeIcon,
     Title
 } from '@mantine/core'
-import { TbBaselineDensitySmall, TbColumns, TbMaximize, TbRotate2 } from 'react-icons/tb'
-import { PiDeviceMobile, PiMonitor, PiWarning } from 'react-icons/pi'
 import { useTranslation } from 'react-i18next'
-import { useEffect, useState } from 'react'
+import { PiDeviceMobile, PiMonitor, PiWarning } from 'react-icons/pi'
+import { TbBaselineDensitySmall, TbColumns, TbMaximize, TbRotate2 } from 'react-icons/tb'
 
 import { useMiscStoreActions, useMobileWarningClosed } from '@entities/dashboard/misc-store'
 
 export function MobileWarningOverlay() {
-    const [opened, setOpened] = useState(false)
     const { t } = useTranslation()
 
     const mobileWarningClosed = useMobileWarningClosed()
     const actions = useMiscStoreActions()
 
-    useEffect(() => {
-        if (!mobileWarningClosed) {
-            setOpened(true)
-        }
-    }, [])
-
     const handleClose = () => {
         actions.setMobileWarningClosed(true)
-        setOpened(false)
     }
 
     return (
         <Modal
             centered
             onClose={handleClose}
-            opened={opened}
+            opened={!mobileWarningClosed}
             padding="xl"
-            radius="lg"
             size="sm"
             withCloseButton={false}
         >

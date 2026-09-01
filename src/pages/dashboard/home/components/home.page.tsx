@@ -1,93 +1,72 @@
-import { SimpleGrid, Stack, Title, TitleProps } from '@mantine/core'
-import { motion, Variants } from 'motion/react'
+import { ActionIcon, Box, Group, SimpleGrid, Stack, Title } from '@mantine/core'
+import { modals } from '@mantine/modals'
+import { notifications } from '@mantine/notifications'
+import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { TbCamera, TbInfoCircle } from 'react-icons/tb'
 
-import { MetricWithIcon } from '@widgets/dashboard/home/metric-with-icons'
-import { LoadingScreen, PageHeader } from '@shared/ui'
-import { MetricWithTrend } from '@shared/ui/metrics'
-import { ROUTES } from '@shared/constants'
+import { useIsMobile } from '@shared/hooks'
+import { LoadingScreen } from '@shared/ui'
+import { DisclaimerOverlay } from '@shared/ui/disclaimer-overlay'
+import { MetricCardShared, MetricCardWithTrendShared } from '@shared/ui/metrics/metric-card'
+import { BaseOverlayHeader } from '@shared/ui/overlays/base-overlay-header'
 import { Page } from '@shared/ui/page'
+import { copyScreenshotToClipboard } from '@shared/utils/copy-screenshot.util'
 
+import classes from './home.module.css'
+import { IProps } from './interfaces'
 import {
     getBandwidthMetrics,
     getOnlineMetrics,
-    getPm2ProcessMetrics,
-    getPm2SummaryMetrics,
+    getRuntimeProcessMetrics,
+    getRuntimeSummaryMetrics,
     getSimpleMetrics,
     getUsersMetrics
 } from './metrics'
-import { IProps } from './interfaces'
+import { RuntimeDetailCard } from './runtime-detail-card'
+import { RuntimeInfoModalContent } from './runtime-info-modal/runtime-info-modal'
 
-const MotionWrapper = motion.div
-const MotionStack = motion(Stack)
-const MotionGrid = motion(SimpleGrid)
-
-interface IAnimatedTitleProps extends TitleProps {
+interface IAnimatedCardProps {
     children: React.ReactNode
-    variants: Variants
+    index: number
 }
 
-const AnimatedTitle = (props: IAnimatedTitleProps) => (
-    <motion.div variants={props.variants}>
-        <Title {...props}>{props.children}</Title>
-    </motion.div>
+const AnimatedCard = ({ children, index }: IAnimatedCardProps) => (
+    <Box className={classes.card} style={{ '--card-index': index } as React.CSSProperties}>
+        {children}
+    </Box>
 )
-
-const containerVariants = {
-    hidden: {},
-    visible: {
-        transition: {
-            staggerChildren: 0.15
-        }
-    }
-}
-
-const sectionVariants = {
-    hidden: { opacity: 0, y: 30 },
-    visible: {
-        opacity: 1,
-        y: 0,
-        transition: {
-            duration: 0.4,
-            staggerChildren: 0.03
-        }
-    }
-}
-
-const titleVariants = {
-    hidden: { opacity: 0, x: -20 },
-    visible: {
-        opacity: 1,
-        x: 0,
-        transition: { duration: 0.3 }
-    }
-}
-
-const gridVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-        opacity: 1,
-        transition: {
-            duration: 0.2,
-            staggerChildren: 0.03
-        }
-    }
-}
-
-const cardVariants = {
-    hidden: { opacity: 0, y: 10, scale: 0.95 },
-    visible: {
-        opacity: 1,
-        y: 0,
-        scale: 1,
-        transition: { duration: 0.25 }
-    }
-}
 
 export const HomePage = (props: IProps) => {
     const { t } = useTranslation()
 
+    const isMobile = useIsMobile()
+    const runtimeRef = useRef<HTMLDivElement>(null)
+    const [copying, setCopying] = useState(false)
+
     const { systemInfo, bandwidthStats, remnawaveHealth } = props
+
+    const copyRuntimeScreenshot = async () => {
+        if (!runtimeRef.current || copying) return
+        setCopying(true)
+        try {
+            await copyScreenshotToClipboard(async () => {
+                await new Promise<void>((resolve) => {
+                    setTimeout(resolve, 100)
+                })
+                if (!runtimeRef.current) throw new Error('runtimeRef')
+                return runtimeRef.current
+            }, 'remnawave-runtime.png')
+        } catch (error) {
+            notifications.show({
+                color: 'red',
+                message: `${error instanceof Error ? error.message : 'Unknown error'}`,
+                title: 'Error'
+            })
+        } finally {
+            setCopying(false)
+        }
+    }
 
     if (!systemInfo || !bandwidthStats || !remnawaveHealth) {
         return <LoadingScreen />
@@ -97,103 +76,172 @@ export const HomePage = (props: IProps) => {
     const simpleMetrics = getSimpleMetrics(systemInfo, t)
     const usersMetrics = getUsersMetrics(systemInfo.users, t)
     const onlineMetrics = getOnlineMetrics(systemInfo.onlineStats, t)
-    const pm2SummaryMetrics = getPm2SummaryMetrics(remnawaveHealth.pm2Stats, t)
-    const pm2ProcessMetrics = getPm2ProcessMetrics(remnawaveHealth.pm2Stats)
+    const runtimeSummaryMetrics = getRuntimeSummaryMetrics(remnawaveHealth.runtimeMetrics, t)
+    const runtimeProcessMetrics = getRuntimeProcessMetrics(remnawaveHealth.runtimeMetrics)
 
     return (
         <Page title={t('constants.home')}>
-            <PageHeader
-                breadcrumbs={[
-                    { label: t('constants.dashboard'), href: ROUTES.DASHBOARD.HOME },
-                    { label: t('constants.home') }
-                ]}
-                title={t('home.page.short-stats')}
-            />
-
-            <MotionStack animate="visible" gap="sm" initial="hidden" variants={containerVariants}>
-                {pm2SummaryMetrics.length > 0 && (
-                    <MotionWrapper variants={sectionVariants}>
-                        <AnimatedTitle m={'xs'} ml={0} order={4} variants={titleVariants}>
+            <Stack gap="sm">
+                {runtimeSummaryMetrics.length > 0 && (
+                    <div className={classes.section}>
+                        <Title className={classes.title} m="xs" ml={0} order={4}>
                             {t('home.page.remnawave-usage')}
-                        </AnimatedTitle>
+                        </Title>
 
-                        <MotionGrid cols={{ base: 1, sm: 2, xl: 4 }} variants={gridVariants}>
-                            {pm2SummaryMetrics.map((metric) => (
-                                <MotionWrapper key={metric.title} variants={cardVariants}>
-                                    <MetricWithIcon {...metric} />
-                                </MotionWrapper>
+                        <SimpleGrid cols={{ base: 1, sm: 2, xl: 4 }} spacing="xs">
+                            {runtimeSummaryMetrics.map((metric, index) => (
+                                <AnimatedCard index={index} key={metric.title}>
+                                    <MetricCardShared {...metric} />
+                                </AnimatedCard>
                             ))}
-                        </MotionGrid>
-                    </MotionWrapper>
+                        </SimpleGrid>
+                    </div>
                 )}
 
-                {pm2ProcessMetrics.length > 0 && (
-                    <MotionWrapper variants={sectionVariants}>
-                        <AnimatedTitle m={'xs'} ml={0} order={4} variants={titleVariants}>
+                {runtimeProcessMetrics.length > 0 && (
+                    <div className={classes.section}>
+                        <Title className={classes.title} m="xs" ml={0} order={4}>
                             {t('home.page.process-details')}
-                        </AnimatedTitle>
-                        <MotionGrid cols={{ base: 1, sm: 2, xl: 4 }} variants={gridVariants}>
-                            {pm2ProcessMetrics.map((metric) => (
-                                <MotionWrapper key={metric.title} variants={cardVariants}>
-                                    <MetricWithIcon {...metric} />
-                                </MotionWrapper>
+                        </Title>
+                        <SimpleGrid cols={{ base: 1, sm: 2, xl: 4 }} spacing="xs">
+                            {runtimeProcessMetrics.map((metric, index) => (
+                                <AnimatedCard index={index} key={metric.title}>
+                                    <MetricCardShared {...metric} />
+                                </AnimatedCard>
                             ))}
-                        </MotionGrid>
-                    </MotionWrapper>
+                        </SimpleGrid>
+                    </div>
                 )}
 
-                <MotionWrapper variants={sectionVariants}>
-                    <AnimatedTitle m={'xs'} ml={0} order={4} variants={titleVariants}>
+                <div className={classes.section}>
+                    <Title className={classes.title} m="xs" ml={0} order={4}>
                         {t('home.page.bandwidth')}
-                    </AnimatedTitle>
-                    <MotionGrid cols={{ base: 1, sm: 2, xl: 3 }} variants={gridVariants}>
-                        {bandwidthMetrics.map((metric) => (
-                            <MotionWrapper key={metric.title} variants={cardVariants}>
-                                <MetricWithTrend {...metric} />
-                            </MotionWrapper>
+                    </Title>
+                    <SimpleGrid cols={{ base: 1, sm: 2, xl: 3 }} spacing="xs">
+                        {bandwidthMetrics.map((metric, index) => (
+                            <AnimatedCard index={index} key={metric.title}>
+                                <MetricCardWithTrendShared {...metric} />
+                            </AnimatedCard>
                         ))}
-                    </MotionGrid>
-                </MotionWrapper>
+                    </SimpleGrid>
+                </div>
 
-                <MotionWrapper variants={sectionVariants}>
-                    <AnimatedTitle m={'xs'} ml={0} order={4} variants={titleVariants}>
-                        {t('home.page.system')}
-                    </AnimatedTitle>
-                    <MotionGrid cols={{ base: 1, sm: 2, xl: 3 }} variants={gridVariants}>
-                        {simpleMetrics.map((metric) => (
-                            <MotionWrapper key={metric.title} variants={cardVariants}>
-                                <MetricWithIcon {...metric} />
-                            </MotionWrapper>
-                        ))}
-                    </MotionGrid>
-                </MotionWrapper>
-
-                <MotionWrapper variants={sectionVariants}>
-                    <AnimatedTitle m={'xs'} ml={0} order={4} variants={titleVariants}>
+                <div className={classes.section}>
+                    <Title className={classes.title} m="xs" ml={0} order={4}>
                         {t('home.page.online-stats')}
-                    </AnimatedTitle>
-                    <MotionGrid cols={{ base: 1, sm: 2, xl: 4 }} variants={gridVariants}>
-                        {onlineMetrics.map((metric) => (
-                            <MotionWrapper key={metric.title} variants={cardVariants}>
-                                <MetricWithIcon {...metric} />
-                            </MotionWrapper>
+                    </Title>
+                    <SimpleGrid cols={{ base: 1, sm: 2, xl: 4 }} spacing="xs">
+                        {onlineMetrics.map((metric, index) => (
+                            <AnimatedCard index={index} key={metric.title}>
+                                <MetricCardShared
+                                    iconColor={metric.iconColor}
+                                    IconComponent={metric.IconComponent}
+                                    iconVariant={metric.iconVariant}
+                                    isLoading={false}
+                                    title={metric.title}
+                                    value={metric.value}
+                                />
+                            </AnimatedCard>
                         ))}
-                    </MotionGrid>
-                </MotionWrapper>
+                    </SimpleGrid>
+                </div>
 
-                <MotionWrapper variants={sectionVariants}>
-                    <AnimatedTitle m={'xs'} ml={0} order={4} variants={titleVariants}>
-                        {t('user-table.widget.table-title')}
-                    </AnimatedTitle>
-                    <MotionGrid cols={{ base: 1, sm: 2, xl: 4 }} variants={gridVariants}>
-                        {usersMetrics.map((metric) => (
-                            <MotionWrapper key={metric.title} variants={cardVariants}>
-                                <MetricWithIcon {...metric} />
-                            </MotionWrapper>
+                <div className={classes.section}>
+                    <Title className={classes.title} m="xs" ml={0} order={4}>
+                        {t('common.field.system')}
+                    </Title>
+                    <SimpleGrid cols={{ base: 1, sm: 2, xl: 4 }} spacing="xs">
+                        {simpleMetrics.map((metric, index) => (
+                            <AnimatedCard index={index} key={metric.title}>
+                                <MetricCardShared
+                                    iconColor={metric.iconColor}
+                                    IconComponent={metric.IconComponent}
+                                    iconVariant={metric.iconVariant}
+                                    isLoading={false}
+                                    title={metric.title}
+                                    value={metric.value}
+                                />
+                            </AnimatedCard>
                         ))}
-                    </MotionGrid>
-                </MotionWrapper>
-            </MotionStack>
+                    </SimpleGrid>
+                </div>
+
+                <div className={classes.section}>
+                    <Title className={classes.title} m="xs" ml={0} order={4}>
+                        {t('user-table.widget.table-title')}
+                    </Title>
+                    <SimpleGrid cols={{ base: 1, sm: 2, xl: 5 }} spacing="xs">
+                        {usersMetrics.map((metric, index) => (
+                            <AnimatedCard index={index} key={metric.title}>
+                                <MetricCardShared
+                                    iconColor={metric.iconColor}
+                                    IconComponent={metric.IconComponent}
+                                    iconVariant={metric.iconVariant}
+                                    isLoading={false}
+                                    title={metric.title}
+                                    value={metric.value}
+                                />
+                            </AnimatedCard>
+                        ))}
+                    </SimpleGrid>
+                </div>
+
+                {remnawaveHealth.runtimeMetrics && remnawaveHealth.runtimeMetrics.length > 0 && (
+                    <div className={classes.section}>
+                        <Group align="center" gap="xs" m="xs" ml={0}>
+                            <Title className={classes.title} order={4}>
+                                Runtime
+                            </Title>
+
+                            <ActionIcon
+                                color="gray"
+                                loading={copying}
+                                onClick={() => copyRuntimeScreenshot()}
+                                radius="md"
+                                size="sm"
+                                variant="transparent"
+                            >
+                                <TbCamera size={24} />
+                            </ActionIcon>
+
+                            <ActionIcon
+                                color="gray"
+                                onClick={() => {
+                                    modals.open({
+                                        title: (
+                                            <BaseOverlayHeader
+                                                iconColor="cyan"
+                                                IconComponent={TbInfoCircle}
+                                                iconSize={20}
+                                                iconVariant="soft"
+                                                subtitle={t('home.runtime-info.subtitle')}
+                                                title={t('home.runtime-info.title')}
+                                            />
+                                        ),
+                                        size: 'xl',
+                                        centered: true,
+                                        fullScreen: isMobile,
+                                        children: <RuntimeInfoModalContent />
+                                    })
+                                }}
+                                radius="md"
+                                size="sm"
+                                variant="transparent"
+                            >
+                                <TbInfoCircle size={24} />
+                            </ActionIcon>
+                        </Group>
+                        <SimpleGrid cols={{ base: 1, sm: 1, xl: 2 }} ref={runtimeRef} spacing="xs">
+                            {remnawaveHealth.runtimeMetrics.map((metric, index) => (
+                                <AnimatedCard index={index} key={metric.pid}>
+                                    <RuntimeDetailCard metric={metric} />
+                                </AnimatedCard>
+                            ))}
+                        </SimpleGrid>
+                    </div>
+                )}
+            </Stack>
+            <DisclaimerOverlay />
         </Page>
     )
 }

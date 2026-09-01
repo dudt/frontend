@@ -1,20 +1,26 @@
-import { PiClockCounterClockwiseDuotone } from 'react-icons/pi'
-import { Loader, Menu, Text } from '@mantine/core'
+import { Loader, Menu } from '@mantine/core'
 import { modals } from '@mantine/modals'
+import { useTranslation } from 'react-i18next'
+import { PiClockCounterClockwiseDuotone } from 'react-icons/pi'
 
-import { useUserModalStoreActions } from '@entities/dashboard/user-modal-store'
-import { useResetUserTraffic } from '@shared/api/hooks'
+import { queryClient } from '@shared/api'
+import { useResetUserTraffic, usersQueryKeys } from '@shared/api/hooks'
 
-import { IProps } from './interfaces'
+interface IProps {
+    userId: number
+}
 
 export function ResetUsageUserFeature(props: IProps) {
-    const { userUuid } = props
-    const actions = useUserModalStoreActions()
+    const { userId } = props
+    const { t } = useTranslation()
 
     const { mutate: resetUserTraffic, isPending: isResetUserTrafficPending } = useResetUserTraffic({
         mutationFns: {
-            onSuccess: () => {
-                actions.changeModalState(false)
+            onSuccess: (data) => {
+                queryClient.setQueryData(
+                    usersQueryKeys.getUserById({ userId: userId }).queryKey,
+                    data
+                )
             }
         }
     })
@@ -22,22 +28,21 @@ export function ResetUsageUserFeature(props: IProps) {
     const handleResetUsage = async () => {
         resetUserTraffic({
             route: {
-                uuid: userUuid ?? ''
+                userId: userId
             }
         })
     }
 
     const openModal = () =>
         modals.openConfirmModal({
-            title: 'Reset user traffic',
-            children: (
-                <Text size="sm">
-                    Are you sure you want to reset the user traffic? This action is irreversible.
-                </Text>
-            ),
-            labels: { confirm: 'Reset', cancel: 'Cancel' },
+            title: t('common.action.confirm-action'),
+            children: t('common.message.confirm-action-description'),
+            labels: { confirm: t('common.action.reset'), cancel: t('common.action.cancel') },
             centered: true,
-            confirmProps: { color: 'red' },
+            confirmProps: { color: 'red', variant: 'soft' },
+            cancelProps: {
+                variant: 'subtle'
+            },
             onConfirm: () => handleResetUsage()
         })
 
@@ -45,17 +50,14 @@ export function ResetUsageUserFeature(props: IProps) {
         <Menu.Item
             leftSection={
                 isResetUserTrafficPending ? (
-                    <Loader color="var(--mantine-color-blue-5)" size={'1rem'} />
+                    <Loader size="1rem" />
                 ) : (
-                    <PiClockCounterClockwiseDuotone
-                        color="var(--mantine-color-blue-5)"
-                        size="16px"
-                    />
+                    <PiClockCounterClockwiseDuotone size="16px" />
                 )
             }
             onClick={openModal}
         >
-            Reset usage
+            {t('reset-usage-user.feature.reset-usage')}
         </Menu.Item>
     )
 }

@@ -1,7 +1,9 @@
-import ReactDOM from 'react-dom/client'
+import { createRoot } from 'react-dom/client'
 
 import { App } from './app'
+
+import '@shared/utils/setup-lottie/setup-lottie'
 import '@shared/utils/setup-monaco/setup-monaco'
 
-const root = ReactDOM.createRoot(document.getElementById('root')!)
+const root = createRoot(document.getElementById('root')!)
 root.render(<App />)

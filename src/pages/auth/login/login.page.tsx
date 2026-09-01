@@ -1,91 +1,116 @@
-import { Badge, Box, Center, Group, Image, Stack, Text, Title } from '@mantine/core'
-import { useLayoutEffect } from 'react'
-
-import { TelegramLoginButtonFeature } from '@features/auth/telegram-login-button/telegram-login-button.feature'
-import { OAuth2LoginButtonsFeature } from '@features/auth/oauth2-login-button/oauth2-login-button.feature'
-import { useGetAuthStatus } from '@shared/api/hooks/auth/auth.query.hooks'
-import { RegisterFormFeature } from '@features/auth/register-form'
 import { LoginFormFeature } from '@features/auth/login-form'
-import { clearQueryClient } from '@shared/api/query-client'
-import { LoadingScreen } from '@shared/ui'
-import { Logo } from '@shared/ui/logo'
-import { Page } from '@shared/ui/page'
+import { OAuth2LoginButtonsFeature } from '@features/auth/oauth2-login-button/oauth2-login-button.feature'
+import { PasskeyLoginButtonFeature } from '@features/auth/passkey-login-button'
+import { RegisterFormFeature } from '@features/auth/register-form'
+import { Badge, Box, Center, Divider, Group, Image, Stack, Text, Title } from '@mantine/core'
+import { GetStatusCommand } from '@remnawave/backend-contract'
+import { useMemo } from 'react'
+
+import { useGetAuthStatus } from '@shared/api/hooks/auth/auth.query.hooks'
+import { Logo, Page } from '@shared/ui'
+import { parseColoredTextUtil } from '@shared/utils/misc'
+
+const getAuthMethods = (authStatus: GetStatusCommand.Response['response'] | undefined) => {
+    const isPasswordEnabled = authStatus?.authentication?.password?.enabled ?? false
+    const isPasskeyEnabled = authStatus?.authentication?.passkey?.enabled ?? false
+    const isOAuth2Enabled =
+        Object.values(authStatus?.authentication?.oauth2?.providers ?? {}).some(Boolean) ?? false
+
+    return {
+        isOAuth2Enabled,
+        isPasskeyEnabled,
+        isPasswordEnabled,
+        hasAlternativeMethods: isPasskeyEnabled || isOAuth2Enabled,
+        hasPrimaryMethods: isPasswordEnabled
+    }
+}
+
+const BrandLogo = ({ logoUrl }: { logoUrl?: null | string }) => {
+    if (!logoUrl) {
+        return <Logo c="cyan" w="3rem" />
+    }
+
+    return (
+        <Image
+            alt="logo"
+            fit="contain"
+            src={logoUrl}
+            style={{
+                maxWidth: '40px',
+                maxHeight: '40px',
+                width: '40px',
+                height: '40px'
+            }}
+        />
+    )
+}
+
+const BrandTitle = ({ titleParts }: { titleParts: Array<{ color: string; text: string }> }) => {
+    return (
+        <Title ff="Unbounded" order={1} pos="relative">
+            {titleParts.map((part, index) => (
+                <Text
+                    c={part.color || 'white'}
+                    component="span"
+                    fw="inherit"
+                    fz="inherit"
+                    inherit
+                    key={index}
+                    pos="relative"
+                >
+                    {part.text}
+                </Text>
+            ))}
+        </Title>
+    )
+}
+
+const AlternativeAuthMethods = ({
+    authentication,
+    isOAuth2Enabled,
+    isPasskeyEnabled,
+    isPasswordEnabled
+}: {
+    authentication: GetStatusCommand.Response['response']['authentication']
+    isOAuth2Enabled: boolean
+    isPasskeyEnabled: boolean
+    isPasswordEnabled: boolean
+}) => (
+    <Center>
+        <Stack gap="md" maw={isPasswordEnabled ? 300 : 150} w="100%">
+            {isPasskeyEnabled && authentication && (
+                <PasskeyLoginButtonFeature authentication={authentication} />
+            )}
+            {isOAuth2Enabled && authentication && (
+                <OAuth2LoginButtonsFeature authentication={authentication} />
+            )}
+        </Stack>
+    </Center>
+)
 
 export const LoginPage = () => {
-    const { data: authStatus, isFetching } = useGetAuthStatus()
+    const { data: authStatus } = useGetAuthStatus()
 
-    useLayoutEffect(() => {
-        clearQueryClient()
-    }, [])
+    const titleParts = useMemo(() => {
+        if (authStatus?.branding.title) {
+            return parseColoredTextUtil(authStatus.branding.title)
+        }
 
-    if (isFetching) {
-        return <LoadingScreen height="60vh" />
-    }
-
-    const isOAuth2 = Object.values(authStatus?.oauth2?.providers || {}).some(Boolean)
-
-    const isSimpleLogin =
-        authStatus?.isLoginAllowed &&
-        !authStatus?.isRegisterAllowed &&
-        !isOAuth2 &&
-        !authStatus?.tgAuth
-
-    const isTelegramLogin =
-        authStatus?.isLoginAllowed && !authStatus?.isRegisterAllowed && authStatus?.tgAuth
-
-    const isOAuth2Login = authStatus?.isLoginAllowed && !authStatus?.isRegisterAllowed && isOAuth2
+        return [
+            { text: 'Remna', color: 'cyan' },
+            { text: 'wave', color: 'white' }
+        ]
+    }, [authStatus])
 
     const isRegister = !authStatus?.isLoginAllowed && authStatus?.isRegisterAllowed
-
-    const customLogo = () => {
-        if (!authStatus?.branding.logoUrl) {
-            return <Logo c="cyan" w="3rem" />
-        }
-
-        return (
-            <Image
-                alt="logo"
-                fit="contain"
-                src={authStatus.branding.logoUrl}
-                style={{
-                    maxWidth: '40px',
-                    maxHeight: '40px',
-                    width: '40px',
-                    height: '40px'
-                }}
-            />
-        )
-    }
-
-    const customTitle = () => {
-        if (!authStatus?.branding.title) {
-            return (
-                <Title order={1} pos="relative">
-                    <Text c="cyan" component="span" fw="inherit" fz="inherit" pos="relative">
-                        Remna
-                    </Text>
-                    <Text c="white" component="span" fw="inherit" fz="inherit" pos="relative">
-                        wave
-                    </Text>
-                </Title>
-            )
-        }
-
-        return (
-            <Title order={1} pos="relative">
-                <Text c="white" component="span" fw="inherit" fz="inherit" pos="relative">
-                    {authStatus.branding.title}
-                </Text>
-            </Title>
-        )
-    }
+    const authMethods = getAuthMethods(authStatus)
 
     return (
         <Page title="Login">
             <Stack align="center" gap="xs">
                 <Group align="center" gap={4} justify="center">
-                    {customLogo()}
-                    {customTitle()}
+                    <BrandLogo logoUrl={authStatus?.branding.logoUrl} />
+                    <BrandTitle titleParts={titleParts} />
                 </Group>
 
                 {!authStatus && (
@@ -94,23 +119,32 @@ export const LoginPage = () => {
                     </Badge>
                 )}
 
-                {isSimpleLogin && (
-                    <Box maw={800} w={{ base: 440, sm: 500, md: 500 }}>
-                        <LoginFormFeature />
-                    </Box>
-                )}
+                {!isRegister && authStatus && authStatus.authentication && (
+                    <Box maw={800} p={30} w={{ base: 440, sm: 500, md: 500 }}>
+                        <Stack gap="lg">
+                            {authMethods.isPasswordEnabled && <LoginFormFeature />}
 
-                {(isTelegramLogin || isOAuth2Login) && (
-                    <Center maw={800} mt={20}>
-                        <Stack>
-                            {isTelegramLogin && (
-                                <TelegramLoginButtonFeature tgAuth={authStatus.tgAuth} />
+                            {authMethods.hasPrimaryMethods && authMethods.hasAlternativeMethods && (
+                                <Center>
+                                    <Divider
+                                        label="OR"
+                                        labelPosition="center"
+                                        maw="400px"
+                                        w="100%"
+                                    />
+                                </Center>
                             )}
-                            {isOAuth2Login && (
-                                <OAuth2LoginButtonsFeature oauth2={authStatus.oauth2} />
+
+                            {authMethods.hasAlternativeMethods && (
+                                <AlternativeAuthMethods
+                                    authentication={authStatus.authentication}
+                                    isOAuth2Enabled={authMethods.isOAuth2Enabled}
+                                    isPasskeyEnabled={authMethods.isPasskeyEnabled}
+                                    isPasswordEnabled={authMethods.isPasswordEnabled}
+                                />
                             )}
                         </Stack>
-                    </Center>
+                    </Box>
                 )}
 
                 {isRegister && (

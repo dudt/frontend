@@ -1,24 +1,29 @@
+import { createQueryKeys } from '@lukemorales/query-key-factory'
 import {
     GetInternalSquadAccessibleNodesCommand,
-    GetInternalSquadByUuidCommand,
-    GetInternalSquadsCommand
+    GetInternalSquadCommand,
+    GetInternalSquadsCommand,
+    GetInternalSquadsTagsCommand
 } from '@remnawave/backend-contract'
-import { createQueryKeys } from '@lukemorales/query-key-factory'
 import { keepPreviousData } from '@tanstack/react-query'
-import { notifications } from '@mantine/notifications'
 
 import { sToMs } from '@shared/utils/time-utils'
 
-import { createGetQueryHook } from '../../tsq-helpers'
+import { createGetQueryHook, errorHandler } from '../../tsq-helpers'
 
 export const internalSquadsQueryKeys = createQueryKeys('internalSquads', {
+    getInternalSquadsTags: {
+        queryKey: null
+    },
     getInternalSquads: {
         queryKey: null
     },
-    getInternalSquad: (route: GetInternalSquadByUuidCommand.Request) => ({
+    getInternalSquad: (route: GetInternalSquadCommand.RequestParam) => ({
         queryKey: [route]
     }),
-    getInternalSquadAccessibleNodes: (route: GetInternalSquadAccessibleNodesCommand.Request) => ({
+    getInternalSquadAccessibleNodes: (
+        route: GetInternalSquadAccessibleNodesCommand.RequestParam
+    ) => ({
         queryKey: [route]
     })
 })
@@ -33,47 +38,40 @@ export const useGetInternalSquads = createGetQueryHook({
         staleTime: sToMs(5)
     },
 
-    errorHandler: (error) => {
-        notifications.show({
-            title: `Get All Internal Squads`,
-            message: error instanceof Error ? error.message : `Request failed with unknown error.`,
-            color: 'red'
-        })
-    }
+    errorHandler: (error) => errorHandler(error, 'Get All Internal Squads')
 })
 
 export const useGetInternalSquad = createGetQueryHook({
-    endpoint: GetInternalSquadByUuidCommand.TSQ_url,
-    responseSchema: GetInternalSquadByUuidCommand.ResponseSchema,
-    routeParamsSchema: GetInternalSquadByUuidCommand.RequestSchema,
+    endpoint: GetInternalSquadCommand.TSQ_url,
+    responseSchema: GetInternalSquadCommand.ResponseSchema,
+    routeParamsSchema: GetInternalSquadCommand.RequestParamSchema,
     getQueryKey: ({ route }) => internalSquadsQueryKeys.getInternalSquad(route!).queryKey,
     rQueryParams: {
         refetchOnMount: true,
         staleTime: sToMs(30)
     },
-    errorHandler: (error) => {
-        notifications.show({
-            title: `Get Internal Squad`,
-            message: error instanceof Error ? error.message : `Request failed with unknown error.`,
-            color: 'red'
-        })
-    }
+    errorHandler: (error) => errorHandler(error, 'Get Internal Squad')
 })
 
 export const useGetInternalSquadAccessibleNodes = createGetQueryHook({
     endpoint: GetInternalSquadAccessibleNodesCommand.TSQ_url,
     responseSchema: GetInternalSquadAccessibleNodesCommand.ResponseSchema,
-    routeParamsSchema: GetInternalSquadAccessibleNodesCommand.RequestSchema,
+    routeParamsSchema: GetInternalSquadAccessibleNodesCommand.RequestParamSchema,
     getQueryKey: ({ route }) =>
         internalSquadsQueryKeys.getInternalSquadAccessibleNodes(route!).queryKey,
     rQueryParams: {
         staleTime: sToMs(15)
     },
-    errorHandler: (error) => {
-        notifications.show({
-            title: `Get Internal Squad Accessible Nodes`,
-            message: error instanceof Error ? error.message : `Request failed with unknown error.`,
-            color: 'red'
-        })
-    }
+    errorHandler: (error) => errorHandler(error, 'Get Internal Squad Accessible Nodes')
+})
+
+export const useGetInternalSquadsTags = createGetQueryHook({
+    endpoint: GetInternalSquadsTagsCommand.TSQ_url,
+    responseSchema: GetInternalSquadsTagsCommand.ResponseSchema,
+    getQueryKey: () => internalSquadsQueryKeys.getInternalSquadsTags.queryKey,
+    rQueryParams: {
+        refetchOnMount: true,
+        staleTime: sToMs(30)
+    },
+    errorHandler: (error) => errorHandler(error, 'Get InternalSquads Tags')
 })

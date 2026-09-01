@@ -1,37 +1,29 @@
-import {
-    PiClockCountdownDuotone,
-    PiClockUserDuotone,
-    PiProhibitDuotone,
-    PiPulseDuotone
-} from 'react-icons/pi'
-import { USERS_STATUS } from '@remnawave/backend-contract'
-import { Badge } from '@mantine/core'
+import { Badge, BadgeProps } from '@mantine/core'
+import { TUsersStatus, USERS_STATUS } from '@remnawave/backend-contract'
+import { PiClockCountdown, PiClockUser, PiProhibit, PiPulse } from 'react-icons/pi'
 
-import { UserStatusBadgeProps } from './interfaces'
+interface IProps extends Omit<BadgeProps, 'children' | 'color'> {
+    status: TUsersStatus
+}
 
-export function UserStatusBadge({ status, variant = 'outline', ...props }: UserStatusBadgeProps) {
+export function UserStatusBadge({ status, ...props }: IProps) {
     let icon: React.ReactNode
-    let color = ''
+    let color: BadgeProps['color'] = 'gray'
     switch (status) {
         case USERS_STATUS.ACTIVE:
-            icon = <PiPulseDuotone size={18} style={{ color: 'var(--mantine-color-teal-6)' }} />
+            icon = <PiPulse size={18} />
             color = 'teal'
             break
         case USERS_STATUS.DISABLED:
-            icon = <PiProhibitDuotone size={18} style={{ color: 'var(--mantine-color-gray-6)' }} />
-            color = 'gray'
+            icon = <PiProhibit size={18} />
+            color = 'shaded-gray'
             break
         case USERS_STATUS.EXPIRED:
-            icon = <PiClockUserDuotone size={18} style={{ color: 'var(--mantine-color-red-6)' }} />
+            icon = <PiClockUser size={18} />
             color = 'red'
             break
         case USERS_STATUS.LIMITED:
-            icon = (
-                <PiClockCountdownDuotone
-                    size={18}
-                    style={{ color: 'var(--mantine-color-orange-3)' }}
-                />
-            )
+            icon = <PiClockCountdown size={18} />
             color = 'orange'
             break
         default:
@@ -39,7 +31,7 @@ export function UserStatusBadge({ status, variant = 'outline', ...props }: UserS
     }
 
     return (
-        <Badge color={color} leftSection={icon} size="lg" variant={variant} {...props}>
+        <Badge color={color} leftSection={icon} size="lg" variant="soft" {...props}>
             {status}
         </Badge>
     )

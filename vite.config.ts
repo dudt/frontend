@@ -1,31 +1,18 @@
-// import { splashScreen } from 'vite-plugin-splash-screen'
-import removeConsole from 'vite-plugin-remove-console'
-// import { visualizer } from 'rollup-plugin-visualizer'
-import webfontDownload from 'vite-plugin-webfont-dl'
-import tsconfigPaths from 'vite-tsconfig-paths'
-import { ViteEjsPlugin } from 'vite-plugin-ejs'
-import { fileURLToPath, URL } from 'node:url'
-import { comlink } from 'vite-plugin-comlink'
-import react from '@vitejs/plugin-react-swc'
-// import deadFile from 'vite-plugin-deadfile'
+import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
-import * as dotenv from 'dotenv'
-
-dotenv.config({ path: `${__dirname}/.env` })
+// import { splashScreen } from 'vite-plugin-splash-screen'
+// import { visualizer } from 'rollup-plugin-visualizer'
+// import deadFile from 'vite-plugin-deadfile'
+import removeConsole from 'vite-plugin-remove-console'
+import webfontDownload from 'vite-plugin-webfont-dl'
+import 'dotenv/config'
 
 export default defineConfig({
+    assetsInclude: ['**/*.lottie'],
     plugins: [
         react(),
-        comlink(),
-        tsconfigPaths(),
         removeConsole(),
-        webfontDownload(),
-        ViteEjsPlugin((viteConfig) => {
-            return {
-                root: viteConfig.root,
-                isCrowdin: process.env.CROWDIN === '1'
-            }
-        })
+        webfontDownload()
         // splashScreen({
         //     logoSrc: 'favicons/logo_small.svg',
         //     splashBg: '#161B23'
@@ -40,55 +27,95 @@ export default defineConfig({
         //     exclude: ['node_modules/**', /\.md$/i, 'public/**', 'dist/**', '.git/**', '.vscode/**']
         // })
     ],
-    worker: {
-        plugins: () => [comlink()]
-    },
     optimizeDeps: {
-        include: ['html-parse-stringify']
+        include: [
+            'html-parse-stringify',
+            'monaco-editor/editor',
+            'monaco-editor/features/register.all',
+            'monaco-editor/languages/definitions/yaml/yaml',
+            'monaco-editor/languages/features/json/register'
+        ]
     },
     build: {
-        target: 'esNext',
+        target: 'esnext',
         outDir: 'dist',
         chunkSizeWarningLimit: 1000000,
-        // minify: 'terser',
         rollupOptions: {
+            onwarn(warning, defaultHandler) {
+                if (warning.code === 'COMMONJS_VARIABLE_IN_ESM') return
+                defaultHandler(warning)
+            },
             output: {
-                manualChunks: {
-                    react: ['react', 'react-dom', 'react-router-dom', 'react-error-boundary'],
-                    icons: ['react-icons/pi', 'react-icons/fa', 'react-icons/tb'],
-                    date: ['dayjs'],
-                    zod: ['axios', 'zod', 'zustand', 'xbytes'],
-                    utils: [
-                        'nanoid',
-                        'ufo',
-                        'base64-js',
-                        'buffer',
-                        'consola',
-                        'semver',
-                        'jsonc-parser',
-                        'json-edit-react'
-                    ],
-                    mantine: [
-                        '@mantine/core',
-                        '@mantine/hooks',
-                        '@mantine/dates',
-                        '@mantine/nprogress',
-                        '@mantine/notifications',
-                        '@mantine/modals'
-                    ],
-                    remnawave: ['@remnawave/backend-contract'],
-                    i18n: ['i18next', 'i18next-http-backend', 'i18next-browser-languagedetector'],
-                    motion: ['framer-motion', 'motion-dom', 'motion-utils', 'motion'],
-                    crypto: ['crypto-js', '@stablelib/base64', '@stablelib/x25519'],
-                    charts: ['recharts', 'highcharts', 'highcharts-react-official'],
-                    dnd: ['@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities'],
-                    mantinetable: ['mantine-react-table', 'mantine-datatable'],
-                    prettier: ['prettier', 'vscode-languageserver-types', 'prettier/plugins/yaml'],
-                    monaco: ['monaco-editor', 'monaco-yaml', 'yaml'],
-                    tanstack: [
-                        '@tanstack/react-query',
-                        '@tanstack/react-table',
-                        '@tanstack/react-virtual'
+                codeSplitting: {
+                    groups: [
+                        {
+                            name: 'react',
+                            test: /node_modules[\\/](react|react-dom|react-router|react-error-boundary)[\\/]/
+                        },
+                        {
+                            name: 'markdown',
+                            test: /node_modules[\\/](react-markdown|remark-gfm|rehype-raw)[\\/]/
+                        },
+                        {
+                            name: 'icons',
+                            test: /node_modules[\\/](react-icons|@lottiefiles[\\/]dotlottie-react)[\\/]/
+                        },
+                        {
+                            name: 'zod',
+                            test: /node_modules[\\/](axios|zod|zustand|xbytes|zod-to-json-schema)[\\/]/
+                        },
+                        {
+                            name: 'utils',
+                            test: /node_modules[\\/](nanoid|ufo|consola|semver|is-svg|sax|jsonc-parser|json-edit-react|dayjs)[\\/]/
+                        },
+                        {
+                            name: 'mantine',
+                            test: /node_modules[\\/]@mantine[\\/](core|hooks|dates|nprogress|notifications|modals)[\\/]/
+                        },
+                        {
+                            name: 'remnawave',
+                            test: /node_modules[\\/]@remnawave[\\/](backend-contract|subscription-page-types)[\\/]/
+                        },
+                        {
+                            name: 'i18n',
+                            test: /node_modules[\\/](i18next|i18next-http-backend|i18next-browser-languagedetector)[\\/]/
+                        },
+                        {
+                            name: 'motion',
+                            test: /node_modules[\\/](framer-motion|motion|motion-dom|motion-utils)[\\/]/
+                        },
+                        {
+                            name: 'crypto',
+                            test: /node_modules[\\/]@stablelib[\\/](base64|x25519)[\\/]/
+                        },
+                        {
+                            name: 'charts',
+                            test: /node_modules[\\/](recharts|highcharts|@highcharts[\\/]react)[\\/]/
+                        },
+                        {
+                            name: 'dnd',
+                            test: /node_modules[\\/]@dnd-kit[\\/](abstract|dom|helpers|react)[\\/]/
+                        },
+                        {
+                            name: 'mantinetable',
+                            test: /node_modules[\\/](@kastov[\\/]mantine-react-table-open|mantine-datatable)[\\/]/
+                        },
+                        {
+                            name: 'prettier',
+                            test: /node_modules[\\/](prettier|vscode-languageserver-types)[\\/]/
+                        },
+                        {
+                            name: 'monaco',
+                            test: /node_modules[\\/](monaco-editor|monaco-yaml|yaml)[\\/]/
+                        },
+                        {
+                            name: 'tanstack',
+                            test: /node_modules[\\/]@tanstack[\\/](react-query|react-table|react-virtual)[\\/]/
+                        },
+                        {
+                            name: 'xterm',
+                            test: /node_modules[\\/]@xterm[\\/]/
+                        }
                     ]
                 }
             }
@@ -97,24 +124,25 @@ export default defineConfig({
     define: {
         __DOMAIN_BACKEND__: JSON.stringify(process.env.DOMAIN_BACKEND || 'example.com').trim(),
         __NODE_ENV__: JSON.stringify(process.env.NODE_ENV).trim(),
-        __DOMAIN_OVERRIDE__: JSON.stringify(process.env.DOMAIN_OVERRIDE || '0').trim(),
-        __CROWDIN__: JSON.stringify(process.env.CROWDIN || '0').trim()
+        __DOMAIN_OVERRIDE__: JSON.stringify(process.env.DOMAIN_OVERRIDE || '0').trim()
     },
     server: {
         host: '0.0.0.0',
         port: 3333,
         cors: true,
         strictPort: true,
-        allowedHosts: true
+        allowedHosts: true,
+        hmr: {
+            overlay: false
+        }
     },
     resolve: {
-        alias: {
-            '@entities': fileURLToPath(new URL('./src/entities', import.meta.url)),
-            '@features': fileURLToPath(new URL('./src/features', import.meta.url)),
-            '@pages': fileURLToPath(new URL('./src/pages', import.meta.url)),
-            '@widgets': fileURLToPath(new URL('./src/widgets', import.meta.url)),
-            '@public': fileURLToPath(new URL('./public', import.meta.url)),
-            '@shared': fileURLToPath(new URL('./src/shared', import.meta.url))
-        }
+        tsconfigPaths: true,
+        alias: [
+            {
+                find: /^monaco-editor\/esm\/vs\/(.*)$/,
+                replacement: 'monaco-editor/$1'
+            }
+        ]
     }
 })

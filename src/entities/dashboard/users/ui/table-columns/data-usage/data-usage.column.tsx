@@ -1,34 +1,46 @@
-import { RESET_PERIODS } from '@remnawave/backend-contract'
 import { Box, Group, Progress, Text } from '@mantine/core'
+import { RESET_PERIODS } from '@remnawave/backend-contract'
 import { useTranslation } from 'react-i18next'
 
+import { prettifyBytesUtil } from '@shared/utils/bytes'
+
 import { IProps } from '@entities/dashboard/users/ui/table-columns/username/interface'
-import { prettyBytesUtil } from '@shared/utils/bytes'
 
 export function DataUsageColumnEntity(props: IProps) {
     const { t } = useTranslation()
 
     const { user } = props
 
-    const usedTrafficPercentage = user.trafficLimitBytes
-        ? (user.usedTrafficBytes / user.trafficLimitBytes) * 100
-        : 0
-    const limitBytes = prettyBytesUtil(user.trafficLimitBytes, true)
-    const totalUsedTraffic = prettyBytesUtil(user.usedTrafficBytes, true)
-    const lifetimeUsedTraffic = prettyBytesUtil(user.lifetimeUsedTrafficBytes, true)
+    const usedBytes = user.userTraffic.usedTrafficBytes
+    const limitBytes = user.trafficLimitBytes
+    const lifetimeBytes = user.userTraffic.lifetimeUsedTrafficBytes
+    const isUnlimited = limitBytes === 0
+    const percentage = isUnlimited ? 0 : (usedBytes * 100) / limitBytes
 
     const strategy = {
         [RESET_PERIODS.MONTH]: t('data-usage.column.monthly'),
         [RESET_PERIODS.WEEK]: t('data-usage.column.weekly'),
         [RESET_PERIODS.DAY]: t('data-usage.column.daily'),
+        [RESET_PERIODS.MONTH_ROLLING]: `${t('data-usage.column.monthly')} ↻`,
         [RESET_PERIODS.NO_RESET]: '∞'
     }[user.trafficLimitStrategy]
+
+    const prettyUsedData = prettifyBytesUtil(usedBytes) || '0 B'
+    const prettyLifetimeData = prettifyBytesUtil(lifetimeBytes) || '0 B'
+    const maxData = isUnlimited ? '∞' : prettifyBytesUtil(limitBytes) || '∞'
+
+    const getProgressColor = () => {
+        if (isUnlimited) return 'teal'
+        if (percentage > 95) return 'red'
+        if (percentage > 80) return 'yellow.4'
+        return 'teal'
+    }
 
     return (
         <Box miw={300}>
             <Group justify="space-between">
                 <Text c="red.5" fw={700} fz="xs">
-                    {usedTrafficPercentage.toFixed(2)}%
+                    {percentage.toFixed(2)}%
                     <Text c="dimmed" component="span" fz="xs">
                         {' '}
                         {strategy}
@@ -36,25 +48,25 @@ export function DataUsageColumnEntity(props: IProps) {
                 </Text>
                 <Text c="teal.5" fw={700} fz="xs">
                     <Text c="dimmed" component="span" fw={550} fz="xs" size="xs">
-                        Σ {lifetimeUsedTraffic}
+                        Σ {prettyLifetimeData}
                     </Text>{' '}
-                    {(100 - usedTrafficPercentage).toFixed(2)}%
+                    {(100 - percentage).toFixed(2)}%
                 </Text>
             </Group>
             <Progress
-                color={usedTrafficPercentage > 100 ? 'orange.7' : 'teal.9'}
+                color={getProgressColor()}
                 radius="xs"
                 size="md"
-                value={usedTrafficPercentage}
+                value={isUnlimited ? 100 : percentage}
             />
 
             <Group gap="xs" justify="space-between" mt={2}>
                 <Text c="dimmed" fw={550} size="xs">
-                    {totalUsedTraffic === '0' ? '0 GiB' : totalUsedTraffic}
+                    {prettyUsedData}
                 </Text>
 
                 <Text c="dimmed" fw={550} size="xs">
-                    {limitBytes === '0' ? '∞' : `${limitBytes}`}
+                    {maxData}
                 </Text>
             </Group>
         </Box>

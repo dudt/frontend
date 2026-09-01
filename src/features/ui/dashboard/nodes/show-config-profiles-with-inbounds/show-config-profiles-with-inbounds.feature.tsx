@@ -1,12 +1,11 @@
-import { Badge, Button, Flex, Group, Paper, Stack, Text } from '@mantine/core'
-import { useDisclosure } from '@mantine/hooks'
-import { useTranslation } from 'react-i18next'
-import { TbFile } from 'react-icons/tb'
+import { ActionIcon, Badge, Button, Group, Stack, Text, ThemeIcon, Tooltip } from '@mantine/core'
 import { useMemo } from 'react'
-import clsx from 'clsx'
+import { useTranslation } from 'react-i18next'
+import { TbEdit, TbFilePlus, TbTag } from 'react-icons/tb'
 
-import { ConfigProfilesDrawer } from '@widgets/dashboard/nodes/config-profiles-drawer/config-profiles.drawer.widget'
-import { XtlsLogo } from '@shared/ui/logos/xtls-logo'
+import { showModal } from '@shared/_modals/show-modal'
+import { XrayLogo } from '@shared/ui/logos'
+import { SectionCard } from '@shared/ui/section-card'
 
 import { IProps } from './interfaces'
 
@@ -19,14 +18,11 @@ export function ShowConfigProfilesWithInboundsFeature(props: IProps) {
         errors
     } = props
 
-    const [opened, handlers] = useDisclosure(false)
     const { t } = useTranslation()
 
-    const activeProfileInboundsPorts = useMemo(() => {
-        const activeProfile = configProfiles?.find(
-            (profile) => profile.uuid === activeConfigProfileUuid
-        )
+    const activeProfile = configProfiles.find((profile) => profile.uuid === activeConfigProfileUuid)
 
+    const activeProfileInboundsPorts = useMemo(() => {
         const ports = activeConfigProfileInbounds
             ?.map((inbound) => {
                 const inboundConfig = activeProfile?.inbounds.find((i) => i.uuid === inbound)
@@ -35,112 +31,116 @@ export function ShowConfigProfilesWithInboundsFeature(props: IProps) {
             .filter((port) => port !== null)
 
         return [...new Set(ports)]
-    }, [activeConfigProfileInbounds, activeConfigProfileUuid])
+    }, [activeConfigProfileInbounds, activeProfile])
 
-    const activeProfile = configProfiles.find((profile) => profile.uuid === activeConfigProfileUuid)
+    const inboundsCount = activeConfigProfileInbounds?.length ?? 0
+    const hasError = Boolean(errors)
 
     return (
-        <Stack gap="md" mt={10}>
-            <Stack gap="xs">
-                <Group gap="xs">
-                    <XtlsLogo size={16} />
-                    <Text fw={600} size="sm">
-                        {t('show-config-profiles-with-inbounds.feature.config-profile')}
-                    </Text>
-                </Group>
-                <Text c="dimmed" size="xs">
-                    {t(
-                        'show-config-profiles-with-inbounds.feature.select-the-config-profile-that-will-be-applied-to-this-node'
-                    )}
-                </Text>
-            </Stack>
+        <SectionCard.Root
+            style={hasError ? { borderColor: 'var(--mantine-color-red-5)' } : undefined}
+        >
+            {activeProfile ? (
+                <SectionCard.Section>
+                    <Stack gap="sm">
+                        <Group gap="sm" justify="space-between" wrap="nowrap">
+                            <Group gap="sm" style={{ flex: 1, minWidth: 0 }} wrap="nowrap">
+                                <ThemeIcon color="cyan" size="lg" variant="soft">
+                                    <XrayLogo size={20} />
+                                </ThemeIcon>
+                                <Text ff="monospace" fw={600} size="sm" truncate>
+                                    {activeProfile.name}
+                                </Text>
+                            </Group>
 
-            <Paper
-                p="md"
-                radius="md"
-                style={{
-                    borderColor: clsx(
-                        !activeProfile && !errors && 'var(--mantine-color-gray-4)',
-                        activeProfile && 'var(--mantine-color-cyan-filled)',
-                        errors && 'var(--mantine-color-red-4)'
-                    )
-                }}
-                withBorder
-            >
-                {activeProfile ? (
-                    <Stack gap="xs">
-                        <Group align="flex-start" justify="space-between">
-                            <Stack gap={4}>
-                                <Group gap="xs">
-                                    <Text fw={700} size="sm">
-                                        {activeProfile.name}
-                                    </Text>
+                            <Group gap="xs" style={{ flexShrink: 0 }} wrap="nowrap">
+                                <Badge
+                                    color="cyan"
+                                    leftSection={<TbTag size={12} />}
+                                    size="lg"
+                                    variant="light"
+                                >
+                                    {inboundsCount}
+                                </Badge>
 
-                                    <Badge color="blue" size="xs" variant="outline">
-                                        {activeConfigProfileInbounds?.length || 0} inbounds
-                                    </Badge>
-                                </Group>
-
-                                <Group>
-                                    <Flex
-                                        direction="row"
-                                        gap="0.25rem"
-                                        justify={'flex-start'}
-                                        wrap="wrap"
+                                <Tooltip label={t('common.action.edit')}>
+                                    <ActionIcon
+                                        onClick={() =>
+                                            showModal('nodes_nodesConfigProfilesDrawer', {
+                                                activeConfigProfileInbounds:
+                                                    activeConfigProfileInbounds,
+                                                activeConfigProfileUuid: activeConfigProfileUuid,
+                                                onSaveInbounds: onSaveInbounds
+                                            })
+                                        }
+                                        size="lg"
+                                        variant="default"
                                     >
-                                        {activeProfileInboundsPorts?.map((port, index) => (
-                                            <Badge
-                                                color="gray"
-                                                key={`${port}-${index}`}
-                                                size="xs"
-                                                variant="default"
-                                            >
-                                                {port}
-                                            </Badge>
-                                        ))}
-                                    </Flex>
-                                </Group>
+                                        <TbEdit size={18} />
+                                    </ActionIcon>
+                                </Tooltip>
+                            </Group>
+                        </Group>
+
+                        {activeProfileInboundsPorts.length > 0 && (
+                            <Group gap={4}>
+                                {activeProfileInboundsPorts.map((port, index) => (
+                                    <Badge
+                                        color="gray"
+                                        key={`${port}-${index}`}
+                                        radius="sm"
+                                        size="sm"
+                                        variant="default"
+                                    >
+                                        {port}
+                                    </Badge>
+                                ))}
+                            </Group>
+                        )}
+                    </Stack>
+                </SectionCard.Section>
+            ) : (
+                <>
+                    <SectionCard.Section>
+                        <Group gap="sm" wrap="nowrap">
+                            <ThemeIcon color="gray" size="lg" variant="default">
+                                <XrayLogo size={20} />
+                            </ThemeIcon>
+                            <Stack gap={2}>
+                                <Text fw={500} size="sm">
+                                    {t(
+                                        'show-config-profiles-with-inbounds.feature.no-config-profile-selected'
+                                    )}
+                                </Text>
+                                <Text c="dimmed" size="xs">
+                                    {t(
+                                        'show-config-profiles-with-inbounds.feature.choose-a-profile-to-configure-inbounds-for-this-node'
+                                    )}
+                                </Text>
                             </Stack>
                         </Group>
-                    </Stack>
-                ) : (
-                    <Stack align="center" gap="xs" py="sm">
-                        <TbFile opacity={0.5} size={24} />
-                        <Text c="dimmed" fw={500} size="sm">
-                            {t(
-                                'show-config-profiles-with-inbounds.feature.no-config-profile-selected'
-                            )}
-                        </Text>
-                        <Text c="dimmed" size="xs" ta="center">
-                            {t(
-                                'show-config-profiles-with-inbounds.feature.choose-a-profile-to-configure-inbounds-for-this-node'
-                            )}
-                        </Text>
-                    </Stack>
-                )}
-            </Paper>
+                    </SectionCard.Section>
 
-            <Button
-                color="blue"
-                fullWidth
-                leftSection={<TbFile size="16px" />}
-                onClick={handlers.open}
-                size="sm"
-                variant="default"
-            >
-                {activeProfile
-                    ? t('show-config-profiles-with-inbounds.feature.change-profile')
-                    : t('show-config-profiles-with-inbounds.feature.select-config-profile')}
-            </Button>
-
-            <ConfigProfilesDrawer
-                activeConfigProfileInbounds={activeConfigProfileInbounds}
-                activeConfigProfileUuid={activeConfigProfileUuid}
-                key={`${activeConfigProfileUuid}-${activeConfigProfileInbounds?.join(',')}`}
-                onClose={handlers.close}
-                onSaveInbounds={onSaveInbounds}
-                opened={opened}
-            />
-        </Stack>
+                    <SectionCard.Section>
+                        <Button
+                            color="cyan"
+                            fullWidth
+                            leftSection={<TbFilePlus size={16} />}
+                            onClick={() =>
+                                showModal('nodes_nodesConfigProfilesDrawer', {
+                                    activeConfigProfileInbounds: [],
+                                    activeConfigProfileUuid: undefined,
+                                    onSaveInbounds: onSaveInbounds
+                                })
+                            }
+                            size="sm"
+                            variant="light"
+                        >
+                            {t('common.action.select')}
+                        </Button>
+                    </SectionCard.Section>
+                </>
+            )}
+        </SectionCard.Root>
     )
 }

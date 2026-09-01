@@ -1,9 +1,9 @@
-import { PiChartBarDuotone } from 'react-icons/pi'
-import { useTranslation } from 'react-i18next'
-import { Menu } from '@mantine/core'
+import { ActionIcon, Tooltip } from '@mantine/core'
 import { memo } from 'react'
+import { useTranslation } from 'react-i18next'
+import { TbChartArcs } from 'react-icons/tb'
 
-import { MODALS, useModalsStore } from '@entities/dashboard/modal-store'
+import { showModal } from '@shared/_modals/show-modal'
 
 import { IProps } from './interfaces'
 
@@ -11,24 +11,21 @@ const GetNodeUsersUsageFeatureComponent = (props: IProps) => {
     const { nodeUuid } = props
     const { t } = useTranslation()
 
-    const { open: openModal, setInternalData } = useModalsStore()
-
     return (
-        <Menu.Item
-            color="grape"
-            leftSection={<PiChartBarDuotone size="16px" />}
-            onClick={() => {
-                setInternalData({
-                    internalState: {
+        <Tooltip label={t('common.field.usage-stats')}>
+            <ActionIcon
+                color="indigo"
+                onClick={() => {
+                    showModal('nodes_nodeUsageStatsDrawer', {
                         nodeUuid
-                    },
-                    modalKey: MODALS.SHOW_NODE_USERS_USAGE_DRAWER
-                })
-                openModal(MODALS.SHOW_NODE_USERS_USAGE_DRAWER)
-            }}
-        >
-            {t('get-user-usage.feature.show-usage')}
-        </Menu.Item>
+                    })
+                }}
+                size="lg"
+                variant="soft"
+            >
+                <TbChartArcs size="22px" />
+            </ActionIcon>
+        </Tooltip>
     )
 }
 

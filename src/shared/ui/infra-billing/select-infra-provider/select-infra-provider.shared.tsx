@@ -1,11 +1,11 @@
+import type { IProps } from './interfaces/props.interface'
+
 import { Avatar, ComboboxItem, Group, Select, Skeleton, Stack, Text } from '@mantine/core'
-import { forwardRef, useEffect, useState } from 'react'
+import { forwardRef } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { useGetInfraProviders } from '@shared/api/hooks'
 import { faviconResolver } from '@shared/utils/misc'
-
-import type { IProps } from './interfaces/props.interface'
 
 interface ItemProps extends ComboboxItem {
     faviconLink: null | string
@@ -19,6 +19,7 @@ const SelectItem = forwardRef<HTMLDivElement, ItemProps>(
                 <Avatar
                     alt={name}
                     color="initials"
+                    imageProps={{ decoding: 'async', loading: 'lazy' }}
                     name={name}
                     onLoad={(event) => {
                         const img = event.target as HTMLImageElement
@@ -44,14 +45,6 @@ export const SelectInfraProviderShared = (props: IProps) => {
     const { selectedInfraProviderUuid, setSelectedInfraProviderUuid } = props
     const { data: infraProviders, isLoading } = useGetInfraProviders()
     const { t } = useTranslation()
-
-    const [selectedValue, setSelectedValue] = useState<null | string>(
-        selectedInfraProviderUuid || null
-    )
-
-    useEffect(() => {
-        setSelectedValue(selectedInfraProviderUuid || null)
-    }, [selectedInfraProviderUuid])
 
     if (isLoading) {
         return (
@@ -83,14 +76,8 @@ export const SelectInfraProviderShared = (props: IProps) => {
         faviconLink: provider.faviconLink
     }))
 
-    const handleChange = (value: null | string) => {
-        setSelectedValue(value)
-        setSelectedInfraProviderUuid(value)
-    }
-
-    const currentSelectedUuid = selectedValue || selectedInfraProviderUuid
-    const selectedProvider = currentSelectedUuid
-        ? infraProviders.providers.find((provider) => provider.uuid === currentSelectedUuid)
+    const selectedProvider = selectedInfraProviderUuid
+        ? infraProviders.providers.find((p) => p.uuid === selectedInfraProviderUuid)
         : null
 
     const leftSection = selectedProvider ? (
@@ -129,14 +116,14 @@ export const SelectInfraProviderShared = (props: IProps) => {
             leftSectionPointerEvents="none"
             leftSectionWidth={selectedProvider ? 40 : 0}
             maxDropdownHeight={300}
-            onChange={handleChange}
+            onChange={(value) => setSelectedInfraProviderUuid(value)}
             placeholder={t('select-infra-provider.shared.select-provider')}
             renderOption={(item) => {
                 const option = item.option as ItemProps
                 return <SelectItem {...option} />
             }}
             searchable
-            value={selectedValue}
+            value={selectedInfraProviderUuid ?? null}
         />
     )
 }

@@ -1,3 +1,6 @@
+import { SimpleGrid } from '@mantine/core'
+import { motion } from 'motion/react'
+import { useTranslation } from 'react-i18next'
 import {
     PiClockCountdownDuotone,
     PiClockUserDuotone,
@@ -5,12 +8,9 @@ import {
     PiPulseDuotone,
     PiUsersDuotone
 } from 'react-icons/pi'
-import { Box, Group, Loader, SimpleGrid, Stack } from '@mantine/core'
-import { useTranslation } from 'react-i18next'
 
-import { MetricCard } from '@shared/ui/metrics/metric-card'
 import { useGetSystemStats } from '@shared/api/hooks'
-import { formatInt } from '@shared/utils/misc'
+import { IMetricCardProps, MetricCardShared } from '@shared/ui/metrics/metric-card'
 
 export function UsersMetrics() {
     const { t } = useTranslation()
@@ -19,60 +19,63 @@ export function UsersMetrics() {
 
     const users = systemInfo?.users
 
-    const cards = [
+    const cards: IMetricCardProps[] = [
         {
-            icon: PiUsersDuotone,
-            title: t('users-metrics.widget.total'),
-            value: users?.totalUsers,
-            color: 'blue'
+            IconComponent: PiUsersDuotone,
+            iconColor: 'blue',
+            title: t('common.field.total'),
+            value: users?.totalUsers ?? 0,
+            iconVariant: 'soft'
         },
         {
-            icon: PiPulseDuotone,
+            IconComponent: PiPulseDuotone,
+            iconColor: 'teal',
             title: 'Active',
-            value: users?.statusCounts.ACTIVE,
-            color: 'teal'
+            value: users?.statusCounts.ACTIVE ?? 0,
+            iconVariant: 'soft'
         },
         {
-            icon: PiClockUserDuotone,
+            IconComponent: PiClockUserDuotone,
+            iconColor: 'red',
             title: 'Expired',
-            value: users?.statusCounts.EXPIRED,
-            color: 'red'
+            value: users?.statusCounts.EXPIRED ?? 0,
+            iconVariant: 'soft'
         },
         {
-            icon: PiClockCountdownDuotone,
+            IconComponent: PiClockCountdownDuotone,
+            iconColor: 'orange',
             title: 'Limited',
-            value: users?.statusCounts.LIMITED,
-            color: 'orange'
+            value: users?.statusCounts.LIMITED ?? 0,
+            iconVariant: 'soft'
         },
         {
-            icon: PiProhibitDuotone,
+            IconComponent: PiProhibitDuotone,
+            iconColor: 'gray',
             title: 'Disabled',
-            value: users?.statusCounts.DISABLED,
-            color: 'gray'
+            value: users?.statusCounts.DISABLED ?? 0,
+            iconVariant: 'soft'
         }
     ]
     return (
-        <SimpleGrid cols={{ base: 1, sm: 2, xl: 5 }}>
-            {cards.map((card) => (
-                <MetricCard.Root key={card.title}>
-                    <Group wrap="nowrap">
-                        <MetricCard.Icon c={card.color} p="sm">
-                            <card.icon size="32px" />
-                        </MetricCard.Icon>
-                        <Stack align="self-start" gap="xs" miw={0} w="100%">
-                            <MetricCard.TextMuted>{card.title}</MetricCard.TextMuted>
-                            <Box miw={0} w={'100%'}>
-                                <MetricCard.TextEmphasis ff={'monospace'} truncate>
-                                    {isLoading ? (
-                                        <Loader color={card.color} size="xs" />
-                                    ) : (
-                                        formatInt(card.value ?? 0)
-                                    )}
-                                </MetricCard.TextEmphasis>
-                            </Box>
-                        </Stack>
-                    </Group>
-                </MetricCard.Root>
+        <SimpleGrid cols={{ base: 1, xs: 2, xl: 5 }} spacing="xs">
+            {cards.map((card, index) => (
+                <motion.div
+                    animate={{ opacity: 1, y: 0 }}
+                    initial={{ opacity: 0, y: 0 }}
+                    key={card.title}
+                    transition={{
+                        duration: 0.2,
+                        delay: index * 0.07,
+                        ease: 'easeIn'
+                    }}
+                >
+                    <MetricCardShared
+                        iconColor={card.iconColor}
+                        isLoading={isLoading}
+                        key={card.title}
+                        {...card}
+                    />
+                </motion.div>
             ))}
         </SimpleGrid>
     )

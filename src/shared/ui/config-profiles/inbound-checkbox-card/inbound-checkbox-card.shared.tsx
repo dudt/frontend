@@ -1,12 +1,13 @@
+import type { IProps } from './interfaces/props.interface'
+
 import { ActionIcon, Badge, Checkbox, Group, Text } from '@mantine/core'
+import { modals } from '@mantine/modals'
 import { GetConfigProfilesCommand } from '@remnawave/backend-contract'
 import { githubDarkTheme, JsonEditor } from 'json-edit-react'
 import { useTranslation } from 'react-i18next'
-import { modals } from '@mantine/modals'
 import { TbCode } from 'react-icons/tb'
-import { useCallback } from 'react'
 
-import type { IProps } from './interfaces/props.interface'
+import { BaseOverlayHeader } from '@shared/ui/overlays/base-overlay-header'
 
 import classes from './InboundCheckboxCard.module.css'
 
@@ -15,31 +16,35 @@ export const InboundCheckboxCardShared = (props: IProps) => {
 
     const { t } = useTranslation()
 
-    const handleShowInboundJson = useCallback(
-        (
-            inbound: GetConfigProfilesCommand.Response['response']['configProfiles'][number]['inbounds'][number]
-        ) => {
-            modals.open({
-                children: (
-                    <JsonEditor
-                        collapse={3}
-                        data={inbound.rawInbound!}
-                        indent={4}
-                        maxWidth="100%"
-                        rootName=""
-                        theme={githubDarkTheme}
-                        viewOnly
-                    />
-                ),
-                title: t('flat-inbound-checkbox-card.shared.inbound-config-inbound-tag', {
-                    inboundTag: inbound.tag
-                }),
+    const handleShowInboundJson = (
+        inbound: GetConfigProfilesCommand.Response['response']['configProfiles'][number]['inbounds'][number]
+    ) => {
+        modals.open({
+            children: (
+                <JsonEditor
+                    collapse={3}
+                    data={inbound.rawInbound!}
+                    indent={4}
+                    maxWidth="100%"
+                    rootName=""
+                    theme={githubDarkTheme}
+                    viewOnly
+                />
+            ),
+            title: (
+                <BaseOverlayHeader
+                    iconColor="teal"
+                    IconComponent={TbCode}
+                    iconVariant="soft"
+                    title={t('flat-inbound-checkbox-card.shared.inbound-config-inbound-tag', {
+                        inboundTag: inbound.tag
+                    })}
+                />
+            ),
 
-                size: 'xl'
-            })
-        },
-        []
-    )
+            size: 'xl'
+        })
+    }
 
     return (
         <Checkbox.Card
@@ -59,11 +64,11 @@ export const InboundCheckboxCardShared = (props: IProps) => {
                 </Group>
 
                 <Group gap="xs" wrap="nowrap">
-                    <Badge color="gray" size="xs" variant="outline">
+                    <Badge color="gray" ff="monospace" size="xs" variant="soft">
                         {inbound.type}
                     </Badge>
                     {inbound.port && (
-                        <Badge color="teal" size="xs" variant="outline">
+                        <Badge color="teal" ff="monospace" size="xs" variant="soft">
                             {inbound.port}
                         </Badge>
                     )}
@@ -77,7 +82,7 @@ export const InboundCheckboxCardShared = (props: IProps) => {
 
                             handleShowInboundJson(inbound)
                         }}
-                        radius={'md'}
+                        variant="soft"
                     >
                         <TbCode size={16} />
                     </ActionIcon>

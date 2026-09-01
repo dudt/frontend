@@ -1,20 +1,24 @@
+import { createQueryKeys } from '@lukemorales/query-key-factory'
 import {
-    GetAllHwidDevicesCommand,
+    GetHwidDevicesCommand,
     GetHwidDevicesStatsCommand,
+    GetTopUsersByHwidDevicesCommand,
     GetUserHwidDevicesCommand
 } from '@remnawave/backend-contract'
-import { createQueryKeys } from '@lukemorales/query-key-factory'
 import { keepPreviousData } from '@tanstack/react-query'
-import { notifications } from '@mantine/notifications'
 
-import { createGetQueryHook } from '@shared/api/tsq-helpers'
 import { sToMs } from '@shared/utils/time-utils'
 
+import { createGetQueryHook, errorHandler } from '../../tsq-helpers'
+
 export const hwidUserDevicesQueryKeys = createQueryKeys('hwid-user-devices', {
-    getUserHwidDevices: (route: GetUserHwidDevicesCommand.Request) => ({
+    getUserHwidDevices: (route: GetUserHwidDevicesCommand.RequestParam) => ({
         queryKey: [route]
     }),
-    getAllHwidDevices: (filters: GetAllHwidDevicesCommand.RequestQuery) => ({
+    getAllHwidDevices: (filters: GetHwidDevicesCommand.RequestQuery) => ({
+        queryKey: [filters]
+    }),
+    getTopUsersByHwidDevices: (filters: GetTopUsersByHwidDevicesCommand.RequestQuery) => ({
         queryKey: [filters]
     }),
     getHwidDevicesStats: {
@@ -28,25 +32,18 @@ const REFETCH_INTERVAL = 15_100
 export const useGetUserHwidDevices = createGetQueryHook({
     endpoint: GetUserHwidDevicesCommand.TSQ_url,
     responseSchema: GetUserHwidDevicesCommand.ResponseSchema,
-    routeParamsSchema: GetUserHwidDevicesCommand.RequestSchema,
+    routeParamsSchema: GetUserHwidDevicesCommand.RequestParamSchema,
     getQueryKey: ({ route }) => hwidUserDevicesQueryKeys.getUserHwidDevices(route!).queryKey,
     rQueryParams: {
-        staleTime: sToMs(20),
-        refetchInterval: sToMs(20)
+        refetchInterval: sToMs(60)
     },
-    errorHandler: (error) => {
-        notifications.show({
-            title: 'Get User HWIDs and Devices',
-            message: error instanceof Error ? error.message : `Request failed with unknown error.`,
-            color: 'red'
-        })
-    }
+    errorHandler: (error) => errorHandler(error, 'Get User HWIDs and Devices')
 })
 
-export const useGetAllHwidDevices = createGetQueryHook({
-    endpoint: GetAllHwidDevicesCommand.TSQ_url,
-    responseSchema: GetAllHwidDevicesCommand.ResponseSchema,
-    requestQuerySchema: GetAllHwidDevicesCommand.RequestQuerySchema,
+export const useGetHwidDevices = createGetQueryHook({
+    endpoint: GetHwidDevicesCommand.TSQ_url,
+    responseSchema: GetHwidDevicesCommand.ResponseSchema,
+    requestQuerySchema: GetHwidDevicesCommand.RequestQuerySchema,
     getQueryKey: ({ query }) => hwidUserDevicesQueryKeys.getAllHwidDevices(query!).queryKey,
     rQueryParams: {
         staleTime: sToMs(20),
@@ -54,13 +51,7 @@ export const useGetAllHwidDevices = createGetQueryHook({
         placeholderData: keepPreviousData,
         refetchOnMount: true
     },
-    errorHandler: (error) => {
-        notifications.show({
-            title: `Get All HWIDs`,
-            message: error instanceof Error ? error.message : `Request failed with unknown error.`,
-            color: 'red'
-        })
-    }
+    errorHandler: (error) => errorHandler(error, 'Get All HWIDs')
 })
 
 export const useGetHwidDevicesStats = createGetQueryHook({
@@ -72,11 +63,18 @@ export const useGetHwidDevicesStats = createGetQueryHook({
         staleTime: STALE_TIME,
         refetchInterval: REFETCH_INTERVAL
     },
-    errorHandler: (error) => {
-        notifications.show({
-            title: `Get HWIDs Devices Stats`,
-            message: error instanceof Error ? error.message : `Request failed with unknown error.`,
-            color: 'red'
-        })
-    }
+    errorHandler: (error) => errorHandler(error, 'Get HWIDs Devices Stats')
+})
+
+export const useGetTopUsersByHwidDevices = createGetQueryHook({
+    endpoint: GetTopUsersByHwidDevicesCommand.TSQ_url,
+    responseSchema: GetTopUsersByHwidDevicesCommand.ResponseSchema,
+    requestQuerySchema: GetTopUsersByHwidDevicesCommand.RequestQuerySchema,
+    getQueryKey: ({ query }) => hwidUserDevicesQueryKeys.getTopUsersByHwidDevices(query!).queryKey,
+    rQueryParams: {
+        placeholderData: keepPreviousData,
+        staleTime: STALE_TIME,
+        refetchInterval: REFETCH_INTERVAL
+    },
+    errorHandler: (error) => errorHandler(error, 'Get Top Users by HWIDs Devices')
 })

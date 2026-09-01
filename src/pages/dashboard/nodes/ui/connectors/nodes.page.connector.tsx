@@ -1,41 +1,38 @@
-import { useEffect } from 'react'
-
 import {
-    useNodesStoreActions,
-    useNodesStoreCreateModalIsOpen,
-    useNodesStoreEditModalIsOpen
-} from '@entities/dashboard/nodes/nodes-store'
-import { nodesQueryKeys, QueryKeys, useGetConfigProfiles, useGetNodes } from '@shared/api/hooks'
-import { queryClient } from '@shared/api'
+    useGetConfigProfiles,
+    useGetNodePlugins,
+    useGetNodes,
+    useGetNodesTags,
+    useGetNodeSecretKey,
+    useGetNodeIntegrations
+} from '@shared/api/hooks'
 
 import NodesPageComponent from '../components/nodes.page.component'
 
 export function NodesPageConnector() {
-    const actions = useNodesStoreActions()
-
-    const isCreateModalOpen = useNodesStoreCreateModalIsOpen()
-    const isEditModalOpen = useNodesStoreEditModalIsOpen()
-
     const { data: nodes, isLoading } = useGetNodes()
+    const { data: nodePlugins, isLoading: isNodePluginsLoading } = useGetNodePlugins()
+    const { data: nodeIntegrations, isLoading: isNodeIntegrationsLoading } =
+        useGetNodeIntegrations()
     const { isLoading: isConfigProfilesLoading } = useGetConfigProfiles()
 
-    useEffect(() => {
-        ;(async () => {
-            await queryClient.prefetchQuery({
-                queryKey: nodesQueryKeys.getPubKey.queryKey
-            })
-        })()
-        return () => {
-            actions.resetState()
-        }
-    }, [])
+    useGetNodeSecretKey()
+    useGetNodePlugins()
+    useGetNodesTags()
 
-    useEffect(() => {
-        if (isCreateModalOpen || isEditModalOpen) return
-        ;(async () => {
-            await queryClient.refetchQueries({ queryKey: QueryKeys.nodes.getAllNodes.queryKey })
-        })()
-    }, [isCreateModalOpen, isEditModalOpen])
-
-    return <NodesPageComponent isLoading={isLoading || isConfigProfilesLoading} nodes={nodes} />
+    return (
+        <NodesPageComponent
+            isLoading={
+                isLoading ||
+                isConfigProfilesLoading ||
+                isNodePluginsLoading ||
+                isNodeIntegrationsLoading ||
+                !nodePlugins ||
+                !nodeIntegrations
+            }
+            nodes={nodes}
+            nodePlugins={nodePlugins}
+            nodeIntegrations={nodeIntegrations}
+        />
+    )
 }
